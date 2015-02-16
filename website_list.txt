@@ -1,0 +1,22 @@
+List of sites:
+
+1. Login*: log in page using google credentials (EAuth?)
+2. Splash pages: dynamically tailored to what they'll need
+	-Mid: unviewed published schedule, sniv entry, mid summary
+	-CFI: links to enter past due gradesheet, unviewed published schedule, sniv entry, CFI summary
+	-TAD: unviewed published schedule, sniv entry, watchbill
+	-AGI: Class Grade entry unless they haven't seen a newly published schedule
+	-Staff: unviewed published schedule, Greenie
+3. Greenie*: display all mids in rows with the statuses of all their events in columns color coded to the outcome
+4. Schedule*: display a daily flight schedule. View/edit privileges depend on role.
+5. Sniv entry*: either horizontally or vertically (pick one) select a time period and a pop up lets you give reason
+6. Sniv summary*: display the resource (student, plane, cfi, tad) as row entries and time periods horizontally, giving when they're snivved
+7. Admin: enter students/instructors/general info
+8. Mid Training summary: list all student sorties and snivs in the database in chronological order with grade info
+9. Instructor summary: list instructor stats and snivs
+10. CFI grade sheet entry*: looks like a paper grade sheet. Automatically generated with values filled in from student sorties.
+11. AGI grade sheet entry*: allow AGIs to select an academic class and input grades for a large number of mids (ideally, automatically generated with those assigned to their class)
+12. Contact info: either a list of all active users with mobile and email or a search box
+13. Burn tracker: shows the money obligated to date, the money obligated by the rest of the flight schedule, the money remaining, and the expected spending for the rest of the summer.
+14. Watchbill: Displays the various watches and who has been assigned to them over the next time period (week/month/block)
+*These are my priorities
