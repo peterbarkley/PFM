@@ -1,5 +1,11 @@
 <html>
 <head>
+<style>
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+</style>
 <title>PFM Schedule
 </title>
 </head>
@@ -9,12 +15,279 @@
 <li>
 Goal: Allow everyone to view today's schedule, published future schedules, and past schedules</li>
 <li>
-Allow staff, CFIs, and TADs to view future draft schedules
+Allow staff, CFIs, and TADs to view future draft schedules</li>
+<li>
+Allow staff and TADs to modify today [and tomorrow's] published schedule
+</li>
+<li>
+Allow staff to modify future draft schedules
+</li>
+<li>
+Display unscheduled students and their snivved waves</li>
+<li>
+Display metrics (current and future): # of sked flt/ground events, # of unsked students, # of sked flt hours, # of sked civilian inst hours, # of conflicts, # of students by status (complete, active, etc), Training day, sunrise, sunset, hight temp, low temp</li>
+<li>
+Display metrics (past): # events attempted (not cancelled), # events cancelled, # flt hrs flown, cost, # of modifications made after publishing, published time, # of grade sheets not entered</li>
+<li>
+Display unsked planes (broken down by type) and unsked instructors by wave at bottom</li>
+<li>
+There should be 'edit' and 'delete' buttons next to schedule line items as well as a button at the top and bottom to 'add event' for unpublished schedules. There should be no delete button for a published schedule.</li>
+<li>
+Selecting edit on a published schedule should make the cell writeable. Once selected, the button should become a 'save' button. Upon click, the save button should result in the original line being <strike>struck through</strike> with status 'cancelled' and the line as modified being saved as a new sortie and student_sortie entry.</li>
+<li>
+Selecting the 'add' button should add a writeable line at the top or bottom (depending on where the button is pushed). The button becomes a 'save' button after being selected. Upon save, the item is inserted as a new sortie and student_sortie entry and the list should be automatically refreshed (and should now include the new entry in the right spot</li>
+<li>
+The schedule should be sorted by brief time, then same brief times subsorted by instructor last_name alphabetically, then by sked T/O times, then by student last_name alphabetically</li>
+<li>
+Status will be one of: cancelled, failed, scheduled, incomplete, marginal, pass</li>
+<li>
+Conflicts will be highlighted in red (and counted). The following are conflicts:
+	<ul>
+		<li>plane, instructor or student scheduled for >1 sortie at the same time</li>
+		<li>crew rest violation: 
+		<ul>
+			<li>student brief should be >=12 hours since debrief ended (1 hour after land time)</li>
+			<li>instructor brief should be <8 hours since debrief</li>
+			<li>instructors may not fly more can <b>??</b> hours of instructor in a day</li>
+		</ul>
+		</li>
+		<li>wrong event: not scheduled for their next event **unmade decision**: (1) create db entry for next event to minimize lookups or (2) run through student_sortie each time to determine which is next</li>
+		<li>wrong instructor for event. C590 should not be with onwing. C990 should not be with onwing and should be with check instructor</li>
+		<li>plane is overweight</li>
+	</ul>
 </li>
 </ol>
+<h2>Demos</h2>
+<ul>
+<li><a href="7-31.pdf">Previous schedule pdf</a></li>
+<li><a href="schedule.xlsx">Previous schedule xlsx</a></li>
+</ul>
+<p align="center"><h3><a href="yesterday.html"><<</a> Today <a href="tomorrow.html">>></a></h3></p>
 <p>
+<h3>Summary information table</h3>
+<table style="width:100%">
+	<tr>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Sunrise/sunset</td>
+				<td>0600/2000</td>
+			</tr>
+			<tr>
+				<td>High/Low temp</td>
+				<td>85/70</td>
+			</tr>
+			<tr>
+				<td> !</td>
+				<td></td>
+			</tr>
+		</table>
+	</td>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Flight events</td>
+				<td>1</td>
+			</tr>
+			<tr>
+				<td>Ground events</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td>TRBs</td>
+				<td>0</td>
+			</tr>
+		</table>
+	</td>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Conflicts</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td>Unsked students</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td> !</td>
+				<td></td>
+			</tr>
+		</table>
+	</td>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Flight hours</td>
+				<td>1.0</td>
+			</tr>
+			<tr>
+				<td>Civilian instructor hours</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td>Projected costs</td>
+				<td>120</td>
+			</tr>
+		</table>
+	</td>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Active students</td>
+				<td>1</td>
+			</tr>
+			<tr>
+				<td>Complete student</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td>Attrite/DOR/TRB</td>
+				<td>0/0/0</td>
+			</tr>
+		</table>
+	</td>
+	</tr>
+</table>
+<h3>Watchbill table</h3>
+<table  style="width:100%">
+	<tr>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<th>Watch</th>
+				<th>Start</th>
+				<th>Stop</th>
+				<th>Assigned</th>
+				<th>Mobile</th>
+				<th>Land line</th>		
+			</tr>
+			<tr>
+				<td>SDO</td>
+				<td>0600</td>
+				<td>1400</td>
+				<td>ENS Ben "g-rave" Graveline</td>
+				<td>123-456-8901</td>
+				<td>xxx-xxx-xxxx</td>
+			</tr>
+		</table>
+	</td>
+	
+	<td>
+		<table style="width:100%">
+			<tr>
+				<th>Watch</th>
+				<th>Start</th>
+				<th>Stop</th>
+				<th>Assigned</th>
+				<th>Mobile</th>
+				<th>Land line</th>		
+			</tr>
+			<tr>
+				<td>Duty Driver</td>
+				<td>ENS Billy Bob</td>
+				<td>0500</td>
+				<td>1300</td>
+				<td>xxx-xxx-xxxx</td>
+				<td></td>
+			</tr>
+		</table>
+	</td>
+	</tr>
+</table>
 
+<h3>Staff event table</h3>
+<table style="width:100%">
+	<tr>
+		<th>Event</th>
+		<th>Start</th>
+		<th>End</th>
+		<th>Location</th>
+		<th>Participants</th>
+		<th>Notes</th>		
+	</tr>
+	<tr>
+		<td>Party</td>
+		<td>2000</td>
+		<td>2359</td>
+		<td>DTA</td>
+		<td>All hands</td>
+		<td>like it's 1999</td>
+	</tr>
+</table>
+<h3>Ground and flight event table</h3>
+<table style="width:100%">
+	<tr>
+		<th>Brief</th>
+		<th>Sked T/O</th><!--Could do plane start-this is clearer for ground events-->
+		<th>Act T/O</th>
+		<th>Sked Ldg</th><!--Could do plane stop-->
+		<th>Act Ldg</th>
+		<th>Inst</th>
+		<th>Student</th>
+		<th>Event</th>
+		<th>Sked hrs</th>
+		<th>Act hrs</th>
+		<th>Plane</th>
+		<th>Plane Type</th>
+		<th>Status</th>
+		<th>Weight</th>
+	</tr>
+	<tr>
+		<td>0630</td>
+		<td>0730</td>
+		<td></td>
+		<td>1000</td>
+		<td></td>
+		<td>LT Peter "Gnarls" Barkley</td>
+		<td>Midn Tom "Iceman" Kazanski</td>
+		<td>C10</td>
+		<td>1</td>
+		<td></td>
+		<td>161889</td>
+		<td>P-3C</td>
+		<td>Scheduled</td>
+		<td>112000</td>
+	</tr>
+	<tr>
+		<td>sortie[student_sortie->sortie_id]->brief</td>
+		<td>sortie[student_sortie->sortie_id]->scheduled_takeoff</td>
+		<td>student_sortie->actual_takeoff</td>
+		<td>sortie[student_sortie->sortie_id]->scheduled_land</td>
+		<td>student_sortie->actual_land</td>
+		<td>user[sortie->instructor_ID]->title user[sortie->instructor_ID]->first_name "user[sortie->instructor_ID]->callsign" user[sortie->instructor_ID]->last_name</td>
+		<td>user[student_sortie->student_ID]->title ... last_name</td>
+		<td>event[student_sortie->event_ID]->name</td>
+		<td>student_sortie->scheduled_hours</td>
+		<td>student_sortie->dual_flight + student_sortie->solo_flight</td>
+		<td>sortie[student_sortie->sortie_id]->plane_tail_number</td>
+		<td>plane_type[plane[sortie[student_sortie->sortie_id]->plane_tail_number]->plane_type_id</td>
+		<td>student_sortie->status</td>
+		<td>*</td>
+	</tr>
+</table>
+<ol>
+	<li>*-Unmade decision: (1)calculate weight when schedule is written and write to db or (2)calculate on the fly each time the page is called. Pro (1) significantly less db calls. Pro (2) no work required to force recalculation if sortie is changed </li>
+</ol>
 
+<h3>Academics table</h3>
+<table>
+	<tr>
+		<th>Under construction</th>
+	</tr>
+	<tr>
+		<td>xxxx</td>
+	</tr>
+</table>
+<h3>Transportation table</h3>
+<table>
+	<tr>
+		<th>Under construction</th>
+	</tr>
+	<tr>
+		<td>xxxx</td>
+	</tr>
+</table>
 </body>
 </hmtl>
 
