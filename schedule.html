@@ -62,7 +62,8 @@ Conflicts will be highlighted in red (and counted). The following are conflicts:
 <li><a href="7-31.pdf">Previous schedule pdf</a></li>
 <li><a href="schedule.xlsx">Previous schedule xlsx</a></li>
 </ul>
-<p align="center"><h3><a href="yesterday.html"><<</a> Today <a href="tomorrow.html">>></a></h3></p>
+<h3><p style="text-align:center"><a href="previous.html"><<</a> Today <a href="next.html">>></a>
+</p></h3>
 <p>
 <h3>Summary information table</h3>
 <table style="width:100%">
@@ -118,11 +119,11 @@ Conflicts will be highlighted in red (and counted). The following are conflicts:
 	<td>
 		<table style="width:100%">
 			<tr>
-				<td>Flight hours</td>
+				<td>Proj Flight hours</td>
 				<td>1.0</td>
 			</tr>
 			<tr>
-				<td>Civilian instructor hours</td>
+				<td>Proj Civilian instructor hours</td>
 				<td>0</td>
 			</tr>
 			<tr>
@@ -149,7 +150,93 @@ Conflicts will be highlighted in red (and counted). The following are conflicts:
 	</td>
 	</tr>
 </table>
-<h3>Watchbill table</h3>
+<p>
+<h3>Summary information table with db info</h3>
+<table style="width:100%">
+	<tr>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Sunrise/sunset</td>
+				<td>Pull from another website w/ API (may need to store in db to avoid excessive api calls)</td>
+			</tr>
+			<tr>
+				<td>High/Low temp</td>
+				<td>Pull from another website w/ API (may need to store in db to avoid excessive api calls)<</td>
+			</tr>
+			<tr>
+				<td> !</td>
+				<td></td>
+			</tr>
+		</table>
+	</td>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Flight events</td>
+				<td>sum across day's flight events on page or in db</td>
+			</tr>
+			<tr>
+				<td>Ground events</td>
+				<td>sum across day's ground events on page or in db</td>
+			</tr>
+			<tr>
+				<td>TRBs</td>
+				<td>sum across day's TRB events on page or in db</td>
+			</tr>
+		</table>
+	</td>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Conflicts</td>
+				<td>count all highlighted conflicts</td>
+			</tr>
+			<tr>
+				<td>Unsked students</td>
+				<td>count students who are not complete, with no flight or ground events or TRBs</td>
+			</tr>
+			<tr>
+				<td> !</td>
+				<td></td>
+			</tr>
+		</table>
+	</td>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Proj Flight hours</td>
+				<td>sum the student_sortie->sked_flight_hours</td>
+			</tr>
+			<tr>
+				<td>Proj Civilian instructor hours</td>
+				<td>sum across student_sortie->sked_instructor_hours where user[sortie[student_sortie->sortie_ID]->CFI_ID]->paid ]</td>
+			</tr>
+			<tr>
+				<td>Projected costs</td>
+				<td>120</td>
+			</tr>
+		</table>
+	</td>
+	<td>
+		<table style="width:100%">
+			<tr>
+				<td>Active students</td>
+				<td>count across student table where status is active</td>
+			</tr>
+			<tr>
+				<td>Complete student</td>
+				<td>count across student table where status is active</td>
+			</tr>
+			<tr>
+				<td>Attrite/DOR/TRB</td>
+				<td>count across student table where status is attrite/DOR/TRB</td>
+			</tr>
+		</table>
+	</td>
+	</tr>
+</table>
+<h3>Watchbill table:loops across watchbill where start>=today() and end < tomorrow()</h3>
 <table  style="width:100%">
 	<tr>
 	<td>
@@ -169,6 +256,14 @@ Conflicts will be highlighted in red (and counted). The following are conflicts:
 				<td>ENS Ben "g-rave" Graveline</td>
 				<td>123-456-8901</td>
 				<td>xxx-xxx-xxxx</td>
+			</tr>
+			<tr>
+				<td>watch[watchbill->watch_ID]->name</td>
+				<td>watchbill->start</td>
+				<td>watchbill->stop</td>
+				<td>user[watchbill->user_ID]->title,first_name,callsign,last_name</td>
+				<td>user[watchbill->user_ID]->mobile</td>
+				<td>watch[watchbill->watch_ID]->number</td>
 			</tr>
 		</table>
 	</td>
