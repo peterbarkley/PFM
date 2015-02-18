@@ -6,16 +6,46 @@
 <body>
 <h1>CFI grade sheet entry</h1>
 <ol>
-	<li>Goal: 
+	<li>Goal: Allow CFIs to input grades from ground and flight events
 	</li>
-	<li>
+	<li>It should look like the paper grade sheet in formatting. We can adjust either one as necessary
+	</li>
+	<li>All of the values should be pre-filled for the instructor to minimize the admin burden on them.
 	</li>
 </ol>
 <p>
 <h2>Demo</h2></p>
-<p>Under construction
+<p><h3>Grade sheet entry for Midn W. T. "Trog" Door on event C2</h3>
 </p>
+<form>
+<table>
+<tr><td>
+Tail number:</td><td><input type="text" name="tail_number" value="PDB06">*</td></tr><tr><td>
+Instructor name:</td><td><input type="text" name="instructor" value='LT Peter "Gnarls" Barkley' >*</td></tr><tr><td>
+Student name:</td><td><input type="text" name="student" value='Midn W. T. "Trog" Door' >*</td></tr><tr><td>
+Event:</td><td><input type="text" name="event" value='C2' >*</td></tr><tr><td>
+Outcome:</td><td><input type="text" name="status" value='Pass' >*</td></tr><tr><td>
+Takeoff time:</td><td><input type="time" name="actual_takeoff" value="0800" maxlength="4"></td></tr><tr><td>
+Land time:</td><td><input type="time" name="actual_land" value="0905" maxlength="4"></td></tr><tr><td>
+Dual flight time:</td><td><input type="number" name="dual_flight_time" value="1.1"></td></tr><tr><td>
+Solo flight time:</td><td><input type="number" name="solo_flight_time" value="0"></td></tr><tr><td>
+Instructional time:</td><td><input type="number" name="instruction_time" value="2.1"></td></tr><tr><td>
+Dual landings:</td><td><input type="number" name="dual_landings" value="1"></td></tr><tr><td>
+Solo landings:</td><td><input type="number" name="solo_landings" value="0"></td></tr>
+</table>
+<h3>Graded items</h3>
+<table><tr><td>
+Preflight briefing:</td><td><input type="number" name="preflight_briefing" value='3' >*</td></tr>
+</table>
 
+<button type="submit">Submit</button>
+
+</form>
+Notes: 
+<ul>
+	<li>Create dropdown menus for the items where starred*.</li>
+	<li>Model references coming soon</li>
+</ul>
 
 </body>
 </html>

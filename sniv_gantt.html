@@ -6,7 +6,7 @@
 <body>
 <h1>Sniv Gantt Chart</h1>
 <ol>
-	<li>Goal: display all the snivs of a set of resources over time
+	<li>Goal: display all the snivs of a set of resources over time. Resources are TADs, CFIs, students, and planes.
 	</li>
 	<li>This should have the resources listed as rows and time period horizontally. At its most basic, it could be day/date across the top with unavailable waves as the cell entries. This is what we used last year. On hover, the times and reason should be displayed.
 	</li>
@@ -14,12 +14,40 @@
 	</li>
 	<li>This could involved showing a large number of days. As someone scrolls, the resource names should stay visible on the left.
 	</li>
-	<li>For planes, this should display the hours as well.
+	<li>For planes, this should display the plane's hours as well.
 	</li>
 </ol>
 <p>
-<h2>Demo</h2>
+<h2>Demo: The waves numbers give unavailability</h2>
+</p>
+Table loops across all non-inactive resources
 
+<table style="width:100%">
+	<tr>
+		<th>Name</th>
+		<th>Sun<br>2/15</th>
+		<th>Sat<br>2/16</th>
+		<th>Mon<br>2/17</th>
+		<th>Tue<br>2/18</th>
+		<th>Wed<br>2/19</th>		
+	</tr>
+	<tr>
+		<td>LT Peter "Gnarls" Barkley</td>
+		<td><span title="0600-2100: I don't want to fly on Sunday">12345</span></td>
+		<td></td>
+		<td><span title="0600-0900:Don't wanna get outta bed">1</span></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td>user->title,first_name,callsign,last_name</td>
+		<td>span title={loop and concat across snivs where user_id i and column date d +=start,stop,reason for each} <br> </td>
+		<td></td>
+		<td><span title="0600-0900:Don't wanna get outta bed">1</span></td>
+		<td></td>
+		<td></td>
+	</tr>
+</table>
 
 
 </body>
