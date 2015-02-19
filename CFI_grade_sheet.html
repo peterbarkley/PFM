@@ -31,20 +31,21 @@ Takeoff time:</td><td><input type="time" name="actual_takeoff" value="0800" maxl
 Land time:</td><td><input type="time" name="actual_land" value="0905" maxlength="4">Preloaded from the sortie->land. It gets saved as student_sortie[sortied_id,student_id]->actual_land</td></tr><tr><td>
 Dual flight time:</td><td><input type="number" name="dual_flight" value="1.1">Preloaded from the event->dual_flight_hours. It gets saved as student_sortie[sortied_id,student_id]->dual_flight</td></tr><tr><td>
 Solo flight time:</td><td><input type="number" name="solo_flight_time" value="0">Preloaded from the event->solo_flight_hours. It gets saved as student_sortie[sortied_id,student_id]->solo_flight</td></tr><tr><td>
-Instructional time:</td><td><input type="number" name="instruction_time" value="2.1"></td></tr><tr><td>
-Dual landings:</td><td><input type="number" name="dual_landings" value="1"></td></tr><tr><td>
-Solo landings:</td><td><input type="number" name="solo_landings" value="0"></td></tr>
+Instructional time:</td><td><input type="number" name="instruction_time" value="2.1">Preloaded from the event->instruction_hours. It gets saved as student_sortie[sortied_id,student_id]->total_instruction_time</td></tr><tr><td>
+Dual landings:</td><td><input type="number" name="dual_landings" value="1">Preloaded from the event->default_dual_landings. It gets saved as student_sortie[sortied_id,student_id]->dual_landings</td></tr><tr><td>
+Solo landings:</td><td><input type="number" name="solo_landings" value="0">Preloaded from the event->default_solo_landings. It gets saved as student_sortie[sortied_id,student_id]->solo_landings</td></tr>
 </table>
 <h3>Graded items</h3>
+<p>*This loops across each entry in the event_manuever table where the event is what was selected above, pulling the manuever ID and MIF
 <table><tr><td>
-Preflight briefing:</td><td><input type="number" name="preflight_briefing" value='3' >*</td></tr><tr><td>...</td><td>
+Preflight briefing:</td><td><input type="number" name="preflight_briefing" value='3' >The form item is manuever[event_manuever->manuever_ID]->name and the default value is event_manuever->MIF</td></tr><tr><td>...</td><td>
 ...
 </td></tr><tr><td>
 Add item:</td><td>
 <select name="Add_item">
 <option value="Blindfold_cockpit_check">Blindfold cockpit check</option>
 <option value="Landings" selected>Landings</option>
-</select>
+</select>This form item allows instructors to grade extra items not on the gradesheet, which is something they can do in Primary as well. The items available in the dropdown should be all items not already displayed on the page. Ideally, selecting a new items automatically generates that item and repeats the 'Add item' dialogue below. Any manuevers added should pull MIF from the next subsequent event in the syllabus that lists the manuever. If there are none left that list it, it should be the MIF value for the last event to include the manuever
 </td></tr>
 </table>
 
