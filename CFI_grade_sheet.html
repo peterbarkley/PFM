@@ -10,7 +10,7 @@
 	</li>
 	<li>It should look like the paper grade sheet in formatting. We can adjust either one as necessary
 	</li>
-	<li>All of the values should be pre-filled for the instructor to minimize the admin burden on them.
+	<li>All of the values should be pre-filled for the instructor to minimize the admin burden on them. They should be given a set of links upon logging in for each event they're scheduled to have finished that does have any values in the grade sheet.
 	</li>
 </ol>
 <p>
@@ -20,22 +20,32 @@
 <form>
 <table>
 <tr><td>
-Tail number:</td><td><input type="text" name="tail_number" value="PDB06">*</td></tr><tr><td>
-Instructor name:</td><td><input type="text" name="instructor" value='LT Peter "Gnarls" Barkley' >*</td></tr><tr><td>
-Student name:</td><td><input type="text" name="student" value='Midn W. T. "Trog" Door' >*</td></tr><tr><td>
-Event:</td><td><input type="text" name="event" value='C2' >*</td></tr><tr><td>
-Outcome:</td><td><input type="text" name="status" value='Pass' >*</td></tr><tr><td>
-Takeoff time:</td><td><input type="time" name="actual_takeoff" value="0800" maxlength="4"></td></tr><tr><td>
-Land time:</td><td><input type="time" name="actual_land" value="0905" maxlength="4"></td></tr><tr><td>
-Dual flight time:</td><td><input type="number" name="dual_flight_time" value="1.1"></td></tr><tr><td>
-Solo flight time:</td><td><input type="number" name="solo_flight_time" value="0"></td></tr><tr><td>
+Tail number:</td><td><input type="text" name="tail_number" value="PDB06">*This should be a dropdown listing all active plane tail numbers. plane->tail_number
+</td></tr><tr><td>
+Instructor name:</td><td><input type="text" name="instructor" value='LT Peter "Gnarls" Barkley' >*This should be a dropdown listing rank, first_name, last_name of everyone who is active in the CFI table. user[cfi_id]->title,first_name,last_name</td></tr><tr><td>
+Student name:</td><td><input type="text" name="student" value='Midn W. T. "Trog" Door' >*This should be a dropdown listing rank, first_name, last_name of everyone who is active in the student table. </td></tr><tr><td>
+Event:</td><td><input type="text" name="event" value='C2' >**This should be a dropdown listing the name of each event in the event table. event->name </td></tr><tr><td>
+Outcome:</td><td><input type="text" name="status" value='Pass' >*('canceled','fail','incomplete','scheduled','marginal','pass')</td></tr><tr><td>
+Reason for not completing:</td><td><input type="text" name="status" value='Pass' >*Should appear if incomplete or canceled is selected above. Current possible list of cancelations: weather, maintenance, plane_availability, instructor, student, wrong event, wrong instructor,crew rest,other. These will be in the cancel table: cancel->reason</td></tr><tr><td>
+Takeoff time:</td><td><input type="time" name="actual_takeoff" value="0800" maxlength="4">Preloaded from the sortie->scheduled_takeoff. It gets saved as student_sortie[sortied_id,student_id]->actual_takeoff</td></tr><tr><td>
+Land time:</td><td><input type="time" name="actual_land" value="0905" maxlength="4">Preloaded from the sortie->land. It gets saved as student_sortie[sortied_id,student_id]->actual_land</td></tr><tr><td>
+Dual flight time:</td><td><input type="number" name="dual_flight" value="1.1">Preloaded from the event->dual_flight_hours. It gets saved as student_sortie[sortied_id,student_id]->dual_flight</td></tr><tr><td>
+Solo flight time:</td><td><input type="number" name="solo_flight_time" value="0">Preloaded from the event->solo_flight_hours. It gets saved as student_sortie[sortied_id,student_id]->solo_flight</td></tr><tr><td>
 Instructional time:</td><td><input type="number" name="instruction_time" value="2.1"></td></tr><tr><td>
 Dual landings:</td><td><input type="number" name="dual_landings" value="1"></td></tr><tr><td>
 Solo landings:</td><td><input type="number" name="solo_landings" value="0"></td></tr>
 </table>
 <h3>Graded items</h3>
 <table><tr><td>
-Preflight briefing:</td><td><input type="number" name="preflight_briefing" value='3' >*</td></tr>
+Preflight briefing:</td><td><input type="number" name="preflight_briefing" value='3' >*</td></tr><tr><td>...</td><td>
+...
+</td></tr><tr><td>
+Add item:</td><td>
+<select name="Add_item">
+<option value="Blindfold_cockpit_check">Blindfold cockpit check</option>
+<option value="Landings" selected>Landings</option>
+</select>
+</td></tr>
 </table>
 
 <button type="submit">Submit</button>
