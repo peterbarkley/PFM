@@ -2,19 +2,77 @@
 <head>
 <title>AGI grade sheet entry
 </title>
+<style>
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+</style>
 </head>
 <body>
 <h1>AGI grade sheet entry</h1>
 <ol>
-	<li>Goal: 
+	<li>Goal: allow AGIs to select an academic class and input grades for a large number of mids (ideally, automatically generated with those assigned to their class)
 	</li>
-	<li>
+	<li>This could be done by allowing AGIs to select a quiz/test and then allowing grade entry for all active Mids or displaying all possible graded items across the top. Or, rather than all possible, just all events where there is a class_schedule entry for the current block.
 	</li>
 </ol>
 <p>
 <h2>Demo</h2></p>
-<p>Under construction
+<p>
+The row entries loop over all active students (foreach student table entry where student->status!='inactive').
+The column entries loop over all class_schedule entries where class_schedule->begin >= consts->current_block_start and class[class_schedule->class_ID]->graded is true.
 </p>
+<table style="width:100%">
+	<tr>
+		<th>Name</th>
+		<th>A1</th>
+		<th>A2</th>
+		
+	</tr>
+	<tr>
+		<td>Midn W. T. "Trog" Door</td>
+		<td>4</td>
+		<td><form>
+			<select name="Student_ID&class_ID">
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+				<option value="5">5</option>
+			</select>
+			</form>
+		</td>
+	</tr>
+	<tr>
+		<td>Midn Tom "Iceman" Kazanski</td>
+		<td>5</td>
+		<td><form>
+			<select name="Student_ID&class_ID">
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+				<option value="5">5</option>
+			</select>
+			</form>
+		</td>
+	</tr>
+	<tr>
+		<td>user[student_ID]->title,first_name,middle_name,callsign,last_name</td>
+		<td>concat all values class_grades[student_ID,class_schedule[class_ID]->class_schedule_ID]->grade</td>
+		<td><form>
+			<select name="Student_ID&class_ID">
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+				<option value="5">5</option>
+			</select>
+			</form>
+		</td>
+	</tr>
+</table>
 
 
 </body>
