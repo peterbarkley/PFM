@@ -40,8 +40,30 @@ td.I {
 <li>
 Goal: display the status of all active students across all items of interest on one page
 </li>
+<li>
+Ideally, the pass/fail/marginal cells should be links that pull up the grade sheet for the given event and the student name is a link to the student training summary page.</li>
+<li>
+You should be able to sort the table alphabetically by column by clicking on the column header</li>
+<li>
+Note the color scheme:
+<ul>
+<li> Green for Complete status, Y Medical, <=1 day since last flight, or P (with no failures or marginals). 
+</li><li>
+Red for a N Medical, >=4 days without flying or a cell with a failure. 
+</li><li>
+Yellow for 1<days<4 or a cell with a marginal (but no failure).
+</li><li>
+Gray for scheduled events
+</li><li>
+Purple for incomplete or canceled events
+</li><li>
+I'm tempted to create a "flashing" cell for event where the gradesheet has no graded items and it's >2 hours after scheduled sortie land time.
+</li>
+</ul>
+</li>
 </ol>
 <h2>Demo</h2>
+This table should loop across all active students in the student table for the rows
 <table style="width:100%">
 	<tr>
 		<th>Name</th>
@@ -137,10 +159,10 @@ Goal: display the status of all active students across all items of interest on 
 		<td></td>
 	</tr>
 	<tr>
-		<td>user->last_name, user->first_name user->middle_name</td>
-		<td>user->callsign </td>
-		<td>student->status</td>
-		<td >today() - student->last_flight</td>
+		<td>user[student_id]->last_name, user->first_name user->middle_name</td>
+		<td>user[student_id]->callsign </td>
+		<td>student[student_id]->status</td>
+		<td >today() - student[student_id]->last_flight</td>
 		<td >loop over student_sortie where [student_id, event id] concat ->status</td>
 		<td ></td>
 		<td ></td>

@@ -291,7 +291,8 @@ Conflicts will be highlighted in red (and counted). The following are conflicts:
 	</tr>
 </table>
 
-<h3>Staff event table</h3>
+<h3>Non-flying events table</h3>
+Loops across all class_schedule entries where today() < = begin < tomorrow()
 <table style="width:100%">
 	<tr>
 		<th>Event</th>
@@ -302,12 +303,28 @@ Conflicts will be highlighted in red (and counted). The following are conflicts:
 		<th>Notes</th>		
 	</tr>
 	<tr>
+		<td>TRB</td>
+		<td>1000</td>
+		<td>1100</td>
+		<td>Conference room</td>
+		<td>Midn Crash "daplane" Alot</td>
+		<td>Postal, Fun, and Chuck</td>
+	</tr>
+	<tr>
 		<td>Party</td>
 		<td>2000</td>
 		<td>2359</td>
 		<td>DTA</td>
 		<td>All hands</td>
 		<td>like it's 1999</td>
+	</tr>
+	<tr>
+		<td>class[class_schedule->class_ID]->name</td>
+		<td>class_schedule->begin</td>
+		<td>class_schedule->end</td>
+		<td>class_schedule->location</td>
+		<td>loop across class_students->student_ID where class_ID matches returning user[student_ID]->title,first_name,middle_name,last_name</td>
+		<td>loop across class_instructors->user_ID where class_ID matches returning user[user_ID]->title,first_name,middle_name,last_name append class_schedule->notes</td>
 	</tr>
 </table>
 <h3>Ground and flight event table</h3>
@@ -365,24 +382,25 @@ Conflicts will be highlighted in red (and counted). The following are conflicts:
 	<li>*-Unmade decision: (1)calculate weight when schedule is written and write to db or (2)calculate on the fly each time the page is called. Pro (1) significantly less db calls. Pro (2) no work required to force recalculation if sortie is changed </li>
 </ol>
 
-<h3>Academics table</h3>
-<table>
-	<tr>
-		<th>Under construction</th>
-	</tr>
-	<tr>
-		<td>xxxx</td>
-	</tr>
-</table>
 <h3>Transportation table</h3>
-<table>
+<table  style="width:100%">
 	<tr>
-		<th>Under construction</th>
+		<th>Depart</th>
+		<th>ETD</th>
+		<th>Arrive</th>
+		<th>ETA</th>
+		<th>Driver</th>
+		<th>Capacity</th>
 	</tr>
 	<tr>
-		<td>xxxx</td>
+		<td>USNA</td>
+		<td>0500</td>
+		<td>PHNG</td>
+		<td>0530</td>
+		<td>ENS Ryder</td>
+		<td>17</td>
 	</tr>
 </table>
 </body>
-</hmtl>
+</html>
 
