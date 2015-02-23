@@ -32,8 +32,15 @@ Land time:</td><td><input type="time" name="actual_land" value="0905" maxlength=
 Dual flight time:</td><td><input type="number" name="dual_flight" value="1.1">Preloaded from the event->dual_flight_hours. It gets saved as student_sortie[sortied_id,student_id]->dual_flight</td></tr><tr><td>
 Solo flight time:</td><td><input type="number" name="solo_flight_time" value="0">Preloaded from the event->solo_flight_hours. It gets saved as student_sortie[sortied_id,student_id]->solo_flight</td></tr><tr><td>
 Instructional time:</td><td><input type="number" name="instruction_time" value="2.1">Preloaded from the event->instruction_hours. It gets saved as student_sortie[sortied_id,student_id]->total_instruction_time</td></tr><tr><td>
-Dual landings:</td><td><input type="number" name="dual_landings" value="1">Preloaded from the event->default_dual_landings. It gets saved as student_sortie[sortied_id,student_id]->dual_landings</td></tr><tr><td>
-Solo landings:</td><td><input type="number" name="solo_landings" value="0">Preloaded from the event->default_solo_landings. It gets saved as student_sortie[sortied_id,student_id]->solo_landings</td></tr>
+Dual landings:</td>
+<td><input type="number" name="dual_landings" value="1">Preloaded from the event->default_dual_landings. It gets saved as student_sortie[sortied_id,student_id]->dual_landings</td></tr>
+	<tr>
+		<td>
+		Solo landings:
+		</td>
+		<td><input type="number" name="solo_landings" value="0">Preloaded from the event->default_solo_landings. It gets saved as student_sortie[sortied_id,student_id]->solo_landings
+		</td>
+	</tr>
 </table>
 <h3>Graded items</h3>
 <p>*This loops across each entry in the event_manuever table where the event is what was selected above, pulling the manuever ID and MIF
