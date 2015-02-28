@@ -33,7 +33,10 @@ Display unsked planes (broken down by type) and unsked instructors by wave at bo
 <li>
 There should be 'edit' and 'delete' buttons next to schedule line items as well as a button at the top and bottom to 'add event' for unpublished schedules. There should be no delete button for a published schedule.</li>
 <li>
-Selecting edit on a published schedule should make the cell writeable. Once selected, the button should become a 'save' button. Upon click, the save button should result in the original line being <strike>struck through</strike> with status 'cancelled' and the line as modified being saved as a new sortie and student_sortie entry.</li>
+Selecting edit on a published schedule entry (a student_sortie) should make the cells in the line writeable. Once selected, the button should become a 'save' button. If the flight hours are edited or the status is changed to 'pass','marginal','fail', 'incomplete' or cancel, the save button should cause those values to be entered into the student_sortie entry for that line. If anything else is changed, the save button should result in the original line being <strike>struck through</strike> with status 'cancelled' and the line as modified being saved as a new 'scheduled' sortie and student_sortie entry.</li>
+<li>
+Updating the flight hours of an student_sortie should change the hours remaining on the aircraft associated with it. It should also result in the student's last flight being updated if the date of the event is more recent than the date in the student's last flight entry.
+</li>
 <li>
 Selecting the 'add' button should add a writeable line at the top or bottom (depending on where the button is pushed). The button becomes a 'save' button after being selected. Upon save, the item is inserted as a new sortie and student_sortie entry and the list should be automatically refreshed (and should now include the new entry in the right spot</li>
 <li>
