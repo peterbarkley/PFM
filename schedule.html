@@ -386,6 +386,7 @@ Loops across all class_schedule entries where today() < = begin < tomorrow()
 </ol>
 
 <h3>Transportation table</h3>
+Should loop across the trip table for the given day. foreach entry in trip table as trip:
 <table  style="width:100%">
 	<tr>
 		<th>Depart</th>
@@ -402,6 +403,14 @@ Loops across all class_schedule entries where today() < = begin < tomorrow()
 		<td>0530</td>
 		<td>ENS Ryder</td>
 		<td>17</td>
+	</tr>
+	<tr>
+		<td>trip->start_location</td>
+		<td>trip->start_time (without the seconds)</td>
+		<td>trip->end_location</td>
+		<td>trip->end_time</td>
+		<td>PFM_user[trip->driver_ID]->title, last_name</td>
+		<td>vehicle[vehicle_ID]->capacity</td>
 	</tr>
 </table>
 </body>
