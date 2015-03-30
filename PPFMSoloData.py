@@ -14,7 +14,7 @@ import xlrd
 
 from gurobipy import *
 
-book = xlrd.open_workbook("MultiData (35).xlsx")
+book = xlrd.open_workbook("SampleData.xlsx")
 
 back2back=True
 sh = book.sheet_by_name("Multi")
