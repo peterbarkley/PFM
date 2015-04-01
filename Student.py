@@ -25,8 +25,8 @@ class Student(Flyer):
         self.syllabus = None
         self.resourceType = "Student"
         self.crewRest = timedelta(hours=12)
-        self.completedEvents = Set()
-        self.scheduledEvents = Set()
+        self.completedEvents = Set() #Set of events objects for each completed event
+        self.scheduledEvents = Set() #Set of events objects for each currently scheduled event
         self._possibleEvents = {}
 
     #Should take in the number of flight days in the future that the events are possible
@@ -72,9 +72,8 @@ class Student(Flyer):
 
     #Returns a Set of events that would be possible on 'day' in 'wave'
     def events(self,day,wave):
-        flyDay = self.squadron.schedules[day].flyDay
-        first = wave.first
-        return self.findPossible(flyDay,first)
+        first = wave.first()
+        return self.findPossible(day,first)
 
 
 

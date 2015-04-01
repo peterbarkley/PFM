@@ -25,6 +25,7 @@ class Event(object):
         self.maxStudents = 2
         self.followsImmediately = False
         self.followingEvents = Set() #Gives the events that this is a prerequisite for
+        self.precedingEvents = Set()
         self.initialEvent = False
 
     def __str__(self):

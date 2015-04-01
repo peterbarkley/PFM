@@ -15,7 +15,7 @@ class Plane(Resource):
     def __init__(self,id):
         super(Plane, self).__init__(id)
         self.planetype = None
-        self.maxWeight = None
+        self.maxWeight = 650
         self.stagger = 0 #Id of the stagger value from the start of the wave for this aircraft
         self.resourceType = "Plane"
 

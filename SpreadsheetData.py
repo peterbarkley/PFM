@@ -57,18 +57,21 @@ def load(vtna,importName):
 
     #vtna = Squadron() #Create a squadron object to hold the data
 
-    dates = [date(2015,3,27),date(2015,3,28)] #Dates to write schedules for. Should be passed via sys.argv Assume unlisted gap dates are blank schedules.
+    dates = [date(2015,3,27),date(2015,3,28),date(2015,3,29)] #Dates to write schedules for. Should be passed via sys.argv Assume unlisted gap dates are blank schedules.
     #Dealing with blank schedules needs more work. Schedules need to know if crew rests constraints apply from the previous day
     i=1
     for day in dates:
         sked=Schedule(day)
         sked.flyDay = i
-        vtna.schedules[day]=sked
+        vtna.schedules[i]=sked
         i=i+1
-
+    vtna.totalFlightDays = len(dates)
     #Creates the events in the syllabus. Would be replaced by call to data if necessary.
     for i in range(-3,11):
         e = Event(i)
+        if i > -3:
+            vtna.syllabus[i-1].followingEvents.add(e)
+            e.precedingEvents.add(vtna.syllabus[i-1])
         if i>0:
             e.flightHours=1.0
             if i != 5 and i !=9:
@@ -125,7 +128,7 @@ def load(vtna,importName):
     for p in vtna.planes:
         plane = vtna.planes[p]
         d=0
-        for day in dates:
+        for day in vtna.schedules:
             plane._available[day]={}
             j=2
             for w in vtna.schedules[day].waves:
@@ -197,7 +200,12 @@ def load(vtna,importName):
             #studs.append(stud)
             vtna.students[stud]=Student(stud,vtna)
             #syll[stud]=int(sh.cell_value(i,1))
-            vtna.students[stud].nextEvent = vtna.syllabus[(int(sh.cell_value(i,1)))]
+            eventID = int(sh.cell_value(i,1))
+            vtna.students[stud].nextEvent = vtna.syllabus[eventID]
+            if eventID > -3:
+                vtna.students[stud].scheduledEvents.add(vtna.syllabus[eventID-1])
+            for x in range(-3,eventID-1):
+                vtna.students[stud].completedEvents.add(vtna.syllabus[x])
             #sweight[stud]=int(sh.cell_value(i,2))
             vtna.students[stud].weight = int(sh.cell_value(i,2))
             vtna.students[stud].quals.append(sh.cell_value(i,3).encode('utf8'))

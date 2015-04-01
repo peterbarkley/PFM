@@ -35,7 +35,8 @@ class Flyer(Resource):
     #Might want setQual(self,planetype) which appends a planetype string to self.quals
 
     #Might want getQual(self,planetype) returns true if planetype in quals
-    def qualified(self,planetype):
+    def qualified(self,plane):
+        planetype = plane.planetype
         return planetype in self.quals
 
 

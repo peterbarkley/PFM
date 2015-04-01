@@ -41,7 +41,7 @@ class Resource(object):
             return True
 
     def __str__(self):
-        return self.resourceType+str(self.id)
+        return self.resourceType+' '+str(self.id)
 
 def main():
     pass

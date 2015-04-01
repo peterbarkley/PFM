@@ -19,4 +19,5 @@ List of sites:
 12. Contact info: either a list of all active users with mobile and email or a search box
 13. Burn tracker: shows the money obligated to date, the money obligated by the rest of the flight schedule, the money remaining, and the expected spending for the rest of the summer.
 14. Watchbill: Displays the various watches and who has been assigned to them over the next time period (week/month/block)
+15. Publications: Allow users to download FTI and Syllabus
 *These are my priorities
