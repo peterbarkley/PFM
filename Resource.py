@@ -17,6 +17,7 @@ class Resource(object):
         self._available = {} #Dictionary by day and wave containing whether the resource is available then
         self.resourceType = "Resource"
         self.squadron = None
+        self.name = None
 
     #Returns true if the asset is unavailable on day during wave
     #Takes a date day and a Wave object wave

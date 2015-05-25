@@ -58,6 +58,7 @@ def load(vtna,importName):
     #vtna = Squadron() #Create a squadron object to hold the data
 
     dates = [date(2015,3,27),date(2015,3,28),date(2015,3,29)] #Dates to write schedules for. Should be passed via sys.argv Assume unlisted gap dates are blank schedules.
+
     #Dealing with blank schedules needs more work. Schedules need to know if crew rests constraints apply from the previous day
     i=1
     for day in dates:
@@ -66,6 +67,7 @@ def load(vtna,importName):
         vtna.schedules[i]=sked
         i=i+1
     vtna.totalFlightDays = len(dates)
+
     #Creates the events in the syllabus. Would be replaced by call to data if necessary.
     for i in range(-3,11):
         e = Event(i)
@@ -78,7 +80,6 @@ def load(vtna,importName):
                 e.onwing=True
         vtna.syllabus[i]=e
 
-    vtna.syllabus[-3].initialEvent = True
     vtna.syllabus[5].offwing=True
     vtna.syllabus[9].offwing=True
     vtna.syllabus[9].check=True
@@ -201,6 +202,7 @@ def load(vtna,importName):
             vtna.students[stud]=Student(stud,vtna)
             #syll[stud]=int(sh.cell_value(i,1))
             eventID = int(sh.cell_value(i,1))
+            vtna.students[stud].syllabus = 1
             vtna.students[stud].nextEvent = vtna.syllabus[eventID]
             if eventID > -3:
                 vtna.students[stud].scheduledEvents.add(vtna.syllabus[eventID-1])
@@ -304,7 +306,7 @@ def load(vtna,importName):
             ss.student=vtna.students[stud]
             ss.event=event
             s.studentSorties.append(ss)
-            vtna.today.sorties.append(s)
+            vtna.today.sorties[i]=s
             i=i+1
         except IndexError:
             break

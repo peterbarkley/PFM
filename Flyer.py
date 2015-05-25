@@ -18,7 +18,7 @@ class Flyer(Resource):
         super(Flyer, self).__init__(id)
         self.quals = []
         self.last = {'wave':None,'plane':None}
-        self.weight = None
+        self.weight = 180
         self.priority = 1
         self.resourceType = "Flyer"
         self.crewRest = timedelta(hours=8)

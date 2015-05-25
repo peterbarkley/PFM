@@ -59,7 +59,7 @@ class Student(Flyer):
             possible=Set()
             for e in self.squadron.syllabus:
                 event = self.squadron.syllabus[e]
-                if event.initialEvent:
+                if event.syllabus == self.syllabus and event.initialEvent():
                     possible.add(event)
             for e in self.completedEvents | self.scheduledEvents:
                 for f in e.followingEvents:

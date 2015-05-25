@@ -29,7 +29,7 @@ class Squadron(object):
         self.planes = {}
         self.instructors = {}
         self.students = {}
-        self.syllabus = {} #Dictionary of syllabus events
+        self.syllabus = {} #Dictionary of syllabus events like {-3: Event(-3), -2: Event(-2), ... }
         self.today = Schedule(date.today()) #Current schedule
         self.schedules = {} #Dictionary of schedules to be written like {1:Schedule(date(2015,3,27)),2:Schedule(date...}
         self.sevents = {} #Dictionary containing decision variables for all possible student sorties within date range
@@ -37,6 +37,7 @@ class Squadron(object):
         self.m = Model()
         self.totalFlightDays = 1
         self.timeLimit = 30
+        self.verbose = True
 
     #Returns the waves that a plane can fly on a given day
     def waves(self,day,wave,plane):
@@ -112,8 +113,8 @@ class Squadron(object):
         studexpr = LinExpr()
         instexpr = LinExpr()
         objective = LinExpr()
-        for d in self.schedules:
-            sked = self.schedules[d]
+        for d, sked in self.schedules.iteritems():
+            #sked = self.schedules[d]
             day = sked.date
             for p in self.planes:
                 plane = self.planes[p]
@@ -128,13 +129,15 @@ class Squadron(object):
                                     self.sevents[s,p,d,w,event.id]=self.m.addVar(vtype=GRB.BINARY,name='sevent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(stud) + '_' + str(event)) #+1 to obj should be implied
                                     objective.add(self.schedules[d].priority*wave.priority*stud.priority*self.sevents[s,p,d,w,event.id])
                                     #studexpr.add(dcoeff[d]*wcoeff[w]*sprior[s]*sevents[s,p,d,w,e])
-                                    #print s,p,d,w,event.id
+                                    if self.verbose:
+                                        print "creating variable for student %s, plane %s, day %s, wave %s, event %s"%(s,p,d,w,event.id)
                         for i in self.instructors:
                             inst = self.instructors[i]
                             if inst.qualified(plane):
                                 self.ievents[i,p,d,w]=self.m.addVar(vtype=GRB.BINARY,name='ievent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(inst))
                                 objective.add(inst.getPreference(d,w)*self.ievents[i,p,d,w])
-                                #print i,p,d,w
+                                if self.verbose:
+                                    print 'creating variable for instructor %s, plane %s, day %s, wave %s'%(i,p,d,w)
 
         self.m.update()
         self.m.setObjective(objective,GRB.MAXIMIZE)
@@ -143,24 +146,46 @@ class Squadron(object):
 
     #Update starting values
     def setStart(self):
-        for sortie in self.today.sorties:
-            for d in self.schedules:
-                day = self.schedules[d].date
-                if self.schedules[d].waveNumber == self.today.waveNumber:
-                    if sortie.plane.available(day,sortie.wave) and sortie.instructor.available(day,sortie.wave):
-                            for ss in sortie.studentSorties:
-                                s=ss.student
-                                if s.available(day,sortie.wave):
-                                    #This should increment the events for subsequent days
-                                    self.ievents[sortie.instructor.id,sortie.plane.id,d,sortie.wave.id].start = 1.0
-                                    self.sevents[s.id,sortie.plane.id,d,sortie.wave.id,s.nextEvent.id].start = 1.0
-                                    #print str(s)+str(sortie.plane)+str(d)+str(sortie.wave)+str(s.nextEvent)
+        for sortie_id in self.today.sorties:
+            sortie = self.today.sorties[sortie_id]
+            d=1
+            day = self.schedules[d].date
+            if sortie.studentSorties!=[] and self.schedules[d].waveNumber == self.today.waveNumber:
+                if sortie.plane.available(day,sortie.wave) and sortie.instructor.available(day,sortie.wave) and sortie.instructor.qualified(sortie.plane):
+                        for ss in sortie.studentSorties:
+                            s=ss.student
+                            if s.available(day,sortie.wave) and s.qualified(sortie.plane):
+                                #This should increment the events for subsequent days
+                                self.ievents[sortie.instructor.id,sortie.plane.id,d,sortie.wave.id].start = 1.0
+                                self.sevents[s.id,sortie.plane.id,d,sortie.wave.id,s.nextEvent.id].start = 1.0
+                                #print str(s)+str(sortie.plane)+str(d)+str(sortie.wave)+str(s.nextEvent)
         self.m.update()
         return 0
 
 
     #This function should construct a model that meets all constraints and encompasses all requested schedules
     def constructModel(self):
+        #Do not exceed hours remaining on aircraft
+        """for p, plane in self.planes.iteritems():
+            self.m.addConstr(quicksum(self.sevents[stud.id,p,sked.flyDay,wave.id,event.id]*self.syllabus[event.id].flightHours
+            for sked in self.schedules.itervalues()
+            for wave in self.schedules[sked.flyDay].waves.itervalues()
+            for stud in self.students.itervalues()
+            for event in stud.events(sked.flyDay,wave)
+            if plane.available(sked.date,wave)
+            and stud.qualified(plane)) <= plane.hours,'planeHours_%s'%(p))
+"""
+        for p, plane in self.planes.iteritems():
+            plane_hours = LinExpr()
+            for d, sked in self.schedules.iteritems():
+                for w, wave in sked.waves.iteritems():
+                    if plane.available(sked.date,wave):
+                        for s, stud in self.students.iteritems():
+                            if stud.qualified(plane):
+                                for event in stud.events(d,wave):
+                                    plane_hours.add(plane.hours * self.sevents[s,p,d,w,event.id])
+            self.m.addConstr(plane_hours<=plane.hours,'planeHours_%s'%(p))
+
         for d in self.schedules:
             sked = self.schedules[d]
             day = sked.date
@@ -264,7 +289,11 @@ class Squadron(object):
                                     else:
                                         self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].qualified(plane)),'FlyWithInst_%s_%s_%s_%d'%(s,p,d,w))
                                     if event.check:
-                                        self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
+                                        if stud.onwing!=None:
+                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
+                                        'check_%s_%s_%s_%d'%(s,p,d,w))
+                                        else:
+                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].check and self.instructors[i].qualified(plane)),
                                         'check_%s_%s_%s_%d'%(s,p,d,w))
                 self.m.addConstr(onePerDay <= 1, 'onlyOneEvent_%s_%s' % (s,d))
 
@@ -386,6 +415,34 @@ class Squadron(object):
         for v in self.m.getVars():
             if v.x == 1:
                 print('%s %g' % (v.varName, v.x))
+        for d in self.schedules:
+            sked = self.schedules[d]
+            day = sked.date
+            for p in self.planes:
+                plane = self.planes[p]
+                for w in self.schedules[d].waves: #This is a dictionary key integer
+                    wave = self.schedules[d].waves[w]
+                    if plane.available(day,wave):
+                        for i in self.instructors:
+                            inst = self.instructors[i]
+                            if inst.qualified(plane) and self.ievents[i,p,d,w].x:
+                                    sortie = Sortie()
+                                    sortie.brief = wave.times["Flyer"].begin
+                                    sortie.instructor = inst #Instructor object
+                                    sortie.takeoff = wave.times["Plane"].begin
+                                    sortie.land = wave.times["Plane"].end
+                                    sortie.plane = plane #Plane object
+                                    sortie.wave = wave #Wave ojbect
+                                    sked.sorties[(p,w)]=sortie
+                        for s in self.students:
+                            stud = self.students[s]
+                            if stud.qualified(plane):
+                                for event in stud.events(d,wave):
+                                    if self.sevents[s,p,d,w,event.id].x:
+                                        ss = StudentSortie()
+                                        ss.student = stud
+                                        ss.event = event
+                                        sked.sorties[(p,w)].studentSorties.append(ss)
         return True
 
 

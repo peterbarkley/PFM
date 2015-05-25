@@ -15,7 +15,7 @@ class Sortie(object):
     It also has student Sorties associated with it"""
     def __init__(self):
         self.brief = None
-        self.instructor = None #Instructor id
+        self.instructor = None #Instructor object
         self.studentSorties = []
         self.takeoff = None
         self.land = None

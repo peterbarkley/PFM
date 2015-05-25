@@ -18,7 +18,7 @@ class Wave(object):
         self.id = id
         self.begin = None #a datetime giving the date and time for the start of the wave
         self.end = None
-        self.priority = 1
+        self.priority = 1.0
         self.times = {}
         self.times["Plane"] = Sniv()
         self.times["Flyer"] = Sniv()
