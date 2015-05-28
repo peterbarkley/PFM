@@ -135,7 +135,7 @@ class Squadron(object):
                             inst = self.instructors[i]
                             if inst.qualified(plane):
                                 self.ievents[i,p,d,w]=self.m.addVar(vtype=GRB.BINARY,name='ievent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(inst))
-                                objective.add(self.schedules[d].priority*wave.priority*inst.getPreference(d,w)*self.ievents[i,p,d,w])
+                                objective.add(self.schedules[d].priority*inst.getPreference(d,w)*self.ievents[i,p,d,w])
                                 if self.verbose:
                                     print 'creating variable for instructor %s, plane %s, day %s, wave %s, multiplier %s'%(i,p,d,w,self.schedules[d].priority*wave.priority*inst.getPreference(d,w))
 

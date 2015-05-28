@@ -31,7 +31,7 @@ def main():
     execfile(sys.argv[1], config)
     vtna = Squadron()
     verbose = config['verbose']
-    vtna.verbose = verbose
+    vtna.verbose = config['verbose']
     vtna.timeLimit = config['timelimit']
     if verbose:
         print "Loading model from database"
