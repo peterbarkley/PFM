@@ -33,6 +33,7 @@ def main():
     verbose = config['verbose']
     vtna.verbose = config['verbose']
     vtna.timeLimit = config['timelimit']
+    vtna.backToBack = True
     if verbose:
         print "Loading model from database"
     load(vtna,config)
@@ -297,7 +298,8 @@ def load(vtna,config):
                         ss = StudentSortie()
                         ss.student=vtna.students[s]
                         ss.event=event
-                        sortie.plane = vtna.planes[row["plane_tail_number"]]
+                        if row["plane_tail_number"] in vtna.planes:
+                            sortie.plane = vtna.planes[row["plane_tail_number"]]
                         sortie.studentSorties.append(ss)
                         if vtna.today.date == vtna.schedules[1].date+timedelta(days=1):
                             sniv = Sniv()

@@ -38,6 +38,7 @@ class Squadron(object):
         self.totalFlightDays = 1
         self.timeLimit = 120
         self.verbose = True
+        self.backToBack = False
 
     #Returns the waves that a plane can fly on a given day
     def waves(self,day,wave,plane):
@@ -150,7 +151,7 @@ class Squadron(object):
             sortie = self.today.sorties[sortie_id]
             d=1
             day = self.schedules[d].date
-            if sortie.studentSorties!=[] and self.schedules[d].waveNumber == self.today.waveNumber:
+            if sortie.studentSorties!=[] and self.schedules[d].waveNumber == self.today.waveNumber and sortie.plane != None:
                 if sortie.plane.available(day,sortie.wave) and sortie.instructor.available(day,sortie.wave) and sortie.instructor.qualified(sortie.plane):
                         for ss in sortie.studentSorties:
                             s=ss.student
@@ -249,7 +250,10 @@ class Squadron(object):
             for i in self.instructors:
                 inst = self.instructors[i]
                 #Exclusive wave loop for instructors
-                for w in sked.exclusiveWaves["Flyer"]:
+                resourceType = "Flyer"
+                if self.backToBack:
+                    resourceType = "Plane"
+                for w in sked.exclusiveWaves[resourceType]:
                     wave1=sked.waves[w[0]]
                     wave2=sked.waves[w[1]]
                     expr = LinExpr()
