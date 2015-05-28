@@ -18,17 +18,18 @@ class Instructor(Flyer):
     def __init__(self, id):
         super(Instructor, self).__init__(id)
         self.check = False
-        self.priority = -0.1 #Needs to be negative. This encourages the model to schedule the minimum number of instructors
+        self.priority = -0.01 #Needs to be negative. This encourages the model to schedule the minimum number of instructors
         self.maxEvents = 3
         self.preferences = {} #1 is a high preference, 5 is a low preference
         self.resourceType = "Instructor"
+        self.paid = 1
 
-    def setPreference(self,day,wave,amount):
-        self.preferences[(day,wave)]=amount
+    def setPreference(self,d,w,amount):
+        self.preferences[(d,w)]=amount
 
-    def getPreference(self,day,wave):
-        if (day,wave) in self.preferences:
-            return self.priority*self.preferences[(day,wave)]
+    def getPreference(self,d,w):
+        if (d,w) in self.preferences:
+            return self.priority*self.preferences[(d,w)]
         else:
             return 3*self.priority
 

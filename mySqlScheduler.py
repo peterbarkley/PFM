@@ -30,7 +30,9 @@ def main():
     config = {}
     execfile(sys.argv[1], config)
     vtna = Squadron()
+    verbose = config['verbose']
     vtna.verbose = verbose
+    vtna.timeLimit = config['timelimit']
     if verbose:
         print "Loading model from database"
     load(vtna,config)
@@ -110,6 +112,7 @@ def load(vtna,config):
             total_inst = float(row["ground_nonplane_hours"])+e.planeHours + e.flightHours
             e.instructionalHours = total_inst
             e.syllabus = int(row["syllabus_ID"])
+            e.maxStudents = int(row["max_students"])
             if row["follows_immediately"]:
                 e.followsImmediately = True
             vtna.syllabus[i]=e
@@ -163,7 +166,8 @@ def load(vtna,config):
         rows = cur.fetchall()
         for row in rows:
             c = int(row["CFI_ID"])
-            #if verbose: print c
+            if verbose:
+                print c
             inst = Instructor(c)
             inst.maxEvents = row["max_events"]
             if row["C990"]:
@@ -171,6 +175,7 @@ def load(vtna,config):
             vtna.instructors[c]=inst
         if verbose:
             print "Instructors loaded"
+
 
         #Loop over students, adding them
         cur.execute("SELECT * FROM student WHERE status = 'active'")
@@ -263,7 +268,7 @@ def load(vtna,config):
                 print id,row["CFI_ID"]
             s.brief = row["brief"]
             cfi_id = int(row["CFI_ID"])
-            if cfi_id in vtna.instructors:
+            if cfi_id in vtna.instructors and row["wave_ID"] != None:
                 s.instructor = vtna.instructors[cfi_id] #Instructor
                 s.studentSorties = []
                 s.takeoff = row["scheduled_takeoff"]
@@ -278,26 +283,27 @@ def load(vtna,config):
         cur.execute("SELECT * FROM student_sortie WHERE (status = 'pass' OR status = 'marginal' OR status = 'scheduled')")
         rows = cur.fetchall()
         for row in rows:
-            s = int(row["student_ID"])
-            if s in vtna.students:
-                stud = vtna.students[s]
-                event = vtna.syllabus[int(row["event_ID"])]
-                if row["status"]=="scheduled":
-                    stud.scheduledEvents.add(event)
-                else:
-                    stud.completedEvents.add(event)
-                if row["sortie_ID"] in vtna.today.sorties:
-                    sortie = vtna.today.sorties[row["sortie_ID"]]
-                    ss = StudentSortie()
-                    ss.student=vtna.students[s]
-                    ss.event=event
-                    sortie.plane = vtna.planes[row["plane_tail_number"]]
-                    sortie.studentSorties.append(ss)
-                    if vtna.today.date == vtna.schedules[1].date+timedelta(days=1):
-                        sniv = Sniv()
-                        sniv.begin = sortie.brief
-                        sniv.end = sortie.wave.times["Flyer"].end + stud.crewRest
-                        stud.snivs[0]=sniv
+            if row["student_ID"] != None:
+                s = int(row["student_ID"])
+                if s in vtna.students:
+                    stud = vtna.students[s]
+                    event = vtna.syllabus[int(row["event_ID"])]
+                    if row["status"]=="scheduled":
+                        stud.scheduledEvents.add(event)
+                    else:
+                        stud.completedEvents.add(event)
+                    if row["sortie_ID"] in vtna.today.sorties:
+                        sortie = vtna.today.sorties[row["sortie_ID"]]
+                        ss = StudentSortie()
+                        ss.student=vtna.students[s]
+                        ss.event=event
+                        sortie.plane = vtna.planes[row["plane_tail_number"]]
+                        sortie.studentSorties.append(ss)
+                        if vtna.today.date == vtna.schedules[1].date+timedelta(days=1):
+                            sniv = Sniv()
+                            sniv.begin = sortie.brief
+                            sniv.end = sortie.wave.times["Flyer"].end + stud.crewRest
+                            stud.snivs[0]=sniv
 
         for s in vtna.students:
             stud = vtna.students[s]
@@ -307,6 +313,31 @@ def load(vtna,config):
                 if i==1:
                     stud.nextEvent = event
                 i=i+1
+
+
+        #Loop over instructor preferences
+        cur.execute("SELECT * FROM instructor_preference LEFT JOIN cfi ON instructor_preference.cfi_CFI_ID = cfi.CFI_ID WHERE cfi.active = TRUE")
+        rows = cur.fetchall()
+        for row in rows:
+            c = int(row["cfi_CFI_ID"])
+            pref = row["preference"]
+            inst = vtna.instructors[c]
+            begin = row["start"]
+            end = row["end"]
+            for d, sked in vtna.schedules.iteritems():
+                midnight = datetime.combine(sked.date,time(0))
+                start_time =midnight+begin
+                end_time = midnight+end
+                s = Sniv()
+                s.begin = start_time
+                s.end = end_time
+                r = Instructor(0)
+                r.snivs[0] = s
+                for w, wave in sked.waves.iteritems():
+                    if not r.available(sked.date,wave):
+                        inst.setPreference(d,w,pref)
+                        if verbose:
+                            print "Set preference for instructor %d, day %d, wave %d for value %d"%(c,d,w,pref)
 
 
 
@@ -371,8 +402,8 @@ def writeToDatabase(vtna,config):
                         int(sortie.instructor.id),
                         int(sked.id),
                         int(sortie.wave.id));
-                    if verbose:
-                        print statement
+                    """if verbose:
+                        print statement"""
                     cur.execute("INSERT INTO sortie(sortie_ID,brief,scheduled_takeoff,scheduleD_land,CFI_ID,schedule_ID,wave_ID) VALUES(NULL,%s,%s,%s,%s,%s,%s)",(
                         sortie.brief.strftime('%H:%M:%S'),
                         sortie.takeoff.strftime('%H:%M:%S'),
@@ -383,11 +414,11 @@ def writeToDatabase(vtna,config):
                     cur.execute("SELECT sortie_ID FROM sortie ORDER BY sortie_ID DESC LIMIT 1")
                     row = cur.fetchone()
                     sortie_id=row["sortie_ID"]
-                    if verbose:
-                        print 'Sortie ID: ', sortie_id
+                    """if verbose:
+                        print 'Sortie ID: ', sortie_id"""
                     for ss in sortie.studentSorties:
-                        if verbose:
-                            print ss.student.id, ss.event.id
+                        """if verbose:
+                            print ss.student.id, ss.event.id"""
                         cur.execute("INSERT INTO student_sortie(schedule_ID,sortie_ID,student_ID,event_ID,sked_flight_hours,sked_inst_hours,plane_tail_number) VALUES(%s,%s,%s,%s,%s,%s,%s)",
                             (sked.id,
                             sortie_id,

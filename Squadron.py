@@ -36,7 +36,7 @@ class Squadron(object):
         self.ievents = {} #Dictionary containing decision variables for all possible instructor sorties within date range
         self.m = Model()
         self.totalFlightDays = 1
-        self.timeLimit = 30
+        self.timeLimit = 120
         self.verbose = True
 
     #Returns the waves that a plane can fly on a given day
@@ -130,14 +130,14 @@ class Squadron(object):
                                     objective.add(self.schedules[d].priority*wave.priority*stud.priority*self.sevents[s,p,d,w,event.id])
                                     #studexpr.add(dcoeff[d]*wcoeff[w]*sprior[s]*sevents[s,p,d,w,e])
                                     if self.verbose:
-                                        print "creating variable for student %s, plane %s, day %s, wave %s, event %s"%(s,p,d,w,event.id)
+                                        print "creating variable for student %s, plane %s, day %s, wave %s, event %s, multiplier %s"%(s,p,d,w,event.id, self.schedules[d].priority*wave.priority*stud.priority)
                         for i in self.instructors:
                             inst = self.instructors[i]
                             if inst.qualified(plane):
                                 self.ievents[i,p,d,w]=self.m.addVar(vtype=GRB.BINARY,name='ievent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(inst))
-                                objective.add(inst.getPreference(d,w)*self.ievents[i,p,d,w])
+                                objective.add(self.schedules[d].priority*wave.priority*inst.getPreference(d,w)*self.ievents[i,p,d,w])
                                 if self.verbose:
-                                    print 'creating variable for instructor %s, plane %s, day %s, wave %s'%(i,p,d,w)
+                                    print 'creating variable for instructor %s, plane %s, day %s, wave %s, multiplier %s'%(i,p,d,w,self.schedules[d].priority*wave.priority*inst.getPreference(d,w))
 
         self.m.update()
         self.m.setObjective(objective,GRB.MAXIMIZE)
@@ -175,6 +175,7 @@ class Squadron(object):
             if plane.available(sked.date,wave)
             and stud.qualified(plane)) <= plane.hours,'planeHours_%s'%(p))
 """
+        #Don't exceed remaining plane hours
         for p, plane in self.planes.iteritems():
             plane_hours = LinExpr()
             for d, sked in self.schedules.iteritems():
@@ -183,7 +184,7 @@ class Squadron(object):
                         for s, stud in self.students.iteritems():
                             if stud.qualified(plane):
                                 for event in stud.events(d,wave):
-                                    plane_hours.add(plane.hours * self.sevents[s,p,d,w,event.id])
+                                    plane_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
             self.m.addConstr(plane_hours<=plane.hours,'planeHours_%s'%(p))
 
         for d in self.schedules:
@@ -232,10 +233,15 @@ class Squadron(object):
                                                         'OnWingsTogether_%s_%s_%s_%s_%d_%s'% (s,stud.partner.id,p,d,w,event))
                                 #Max students constraint
                                 for event in stud.events(d,wave):
+                                    if self.verbose:
+                                        print 'Event %d day %d wave %d maxstuds %d'%(event.id,d,w,event.maxStudents)
                                     maxStuds = min(maxStuds,event.maxStudents)
                                     maxStudExpr.add(self.sevents[s,p,d,w,event.id])
-                                    maxWeightExpr.add(stud.weight*self.sevents[s,p,d,w,event.id])
+                                    if event.flightHours > 0.0:
+                                        maxWeightExpr.add(stud.weight*self.sevents[s,p,d,w,event.id])
                         self.m.addConstr(maxStudExpr <= wave.studentMultiple*maxStuds,'MaxStuds_%s_%s_%d' % (p,d,w))
+                        if self.verbose:
+                            print 'Max studs is %d'%(maxStuds)
                         self.m.addConstr(maxWeightExpr <= plane.maxWeight/wave.studentMultiple,'Limt max weight for plane %s on day %d during wave %d' % (p,d,w))
                         #print 'Limit max weight for plane %s on day %d during wave %d' % (p,d,w)
 
