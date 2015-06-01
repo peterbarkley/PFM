@@ -22,6 +22,7 @@ class Student(Flyer):
         self.onwing = None #Instructor object
         self.partner = None #Student object
         self.priority = 1
+        self.lastFlight = None
         self.syllabus = None
         self.resourceType = "Student"
         self.crewRest = timedelta(hours=12)
@@ -76,7 +77,14 @@ class Student(Flyer):
         return self.findPossible(day,first)
 
 
+    def getPriority(self):
+        if self.priority != None:
+            return self.priority
+        else:
+            return 1
 
+    def getNextEvent(self):
+        return min(self.findPossible(1,True))
 
 
 def main():

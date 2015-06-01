@@ -128,7 +128,7 @@ class Squadron(object):
                                 for event in stud.events(d,wave):
                                     #s: student id, plane: plane object, d: date object, w: schedule wave dictionary key, e: event object
                                     self.sevents[s,p,d,w,event.id]=self.m.addVar(vtype=GRB.BINARY,name='sevent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(stud) + '_' + str(event)) #+1 to obj should be implied
-                                    objective.add(self.schedules[d].priority*wave.priority*stud.priority*self.sevents[s,p,d,w,event.id])
+                                    objective.add(self.schedules[d].priority*wave.priority*stud.getPriority()*self.sevents[s,p,d,w,event.id])
                                     #studexpr.add(dcoeff[d]*wcoeff[w]*sprior[s]*sevents[s,p,d,w,e])
                                     if self.verbose:
                                         print "creating variable for student %s, plane %s, day %s, wave %s, event %s, multiplier %s"%(s,p,d,w,event.id, self.schedules[d].priority*wave.priority*stud.priority)
@@ -136,7 +136,7 @@ class Squadron(object):
                             inst = self.instructors[i]
                             if inst.qualified(plane):
                                 self.ievents[i,p,d,w]=self.m.addVar(vtype=GRB.BINARY,name='ievent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(inst))
-                                objective.add(self.schedules[d].priority*inst.getPreference(d,w)*self.ievents[i,p,d,w])
+                                objective.add(plane.priority*self.schedules[d].priority*inst.getPreference(d,w)*self.ievents[i,p,d,w])
                                 if self.verbose:
                                     print 'creating variable for instructor %s, plane %s, day %s, wave %s, multiplier %s'%(i,p,d,w,self.schedules[d].priority*wave.priority*inst.getPreference(d,w))
 
@@ -147,7 +147,7 @@ class Squadron(object):
 
     #Update starting values
     def setStart(self):
-        for sortie_id in self.today.sorties:
+        """for sortie_id in self.today.sorties:
             sortie = self.today.sorties[sortie_id]
             d=1
             day = self.schedules[d].date
@@ -160,7 +160,8 @@ class Squadron(object):
                                 self.ievents[sortie.instructor.id,sortie.plane.id,d,sortie.wave.id].start = 1.0
                                 self.sevents[s.id,sortie.plane.id,d,sortie.wave.id,s.nextEvent.id].start = 1.0
                                 #print str(s)+str(sortie.plane)+str(d)+str(sortie.wave)+str(s.nextEvent)
-        self.m.update()
+
+        self.m.update()"""
         return 0
 
 
@@ -422,9 +423,10 @@ class Squadron(object):
 
     #This function should take the output of an optimized model and write it as sorties and student sorties into the correct flight schedule
     def outputModel(self):
-        for v in self.m.getVars():
-            if v.x == 1:
-                print('%s %g' % (v.varName, v.x))
+        if self.verbose:
+            for v in self.m.getVars():
+                if v.x == 1:
+                    print('%s %g' % (v.varName, v.x))
         for d in self.schedules:
             sked = self.schedules[d]
             day = sked.date

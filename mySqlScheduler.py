@@ -30,10 +30,11 @@ def main():
     config = {}
     execfile(sys.argv[1], config)
     vtna = Squadron()
+    global verbose
     verbose = config['verbose']
     vtna.verbose = config['verbose']
     vtna.timeLimit = config['timelimit']
-    vtna.backToBack = True
+    vtna.backToBack = config['backtoback']
     if verbose:
         print "Loading model from database"
     load(vtna,config)
@@ -124,7 +125,8 @@ def load(vtna,config):
         for row in rows:
             i = int(row["following_event_ID"])
             j = int(row["preceding_event_ID"])
-            print i,' follows ', j
+            if verbose:
+                print i,' follows ', j
             vtna.syllabus[i].precedingEvents.add(vtna.syllabus[j])
             vtna.syllabus[j].followingEvents.add(vtna.syllabus[i])
         if verbose:
@@ -138,9 +140,12 @@ def load(vtna,config):
             p =row["tail_number"]
             plane = Plane(p)
             plane.planetype = row["plane_type_ID"]
-            plane.hours = float(row["hours"])
+            if row["next_inspection"] != None and row["tach"] != None:
+                plane.hours = float(row["next_inspection"])-float(row["tach"])
             if (row["max_cargo"]!= 0 and row["max_cargo"]!= None):
                 plane.maxWeight = row["max_cargo"]
+            if row["priority"] != None:
+                plane.priority = row["priority"]
             vtna.planes[p]=plane
 
             #Add plane types
@@ -193,6 +198,10 @@ def load(vtna,config):
             if cfi in vtna.instructors:
                 #if verbose: print "Add instructor",cfi
                 stud.onwing = vtna.instructors[cfi]
+            elif cfi != None:
+                print 'CFI %d onwing for student %d not in instructors!'%(cfi,s)
+            else:
+                print 'no cfi for student %d'%(s)
             vtna.students[s]= stud
             partner_ID = row["partner_student_ID"]
             if partner_ID in vtna.students:
@@ -306,12 +315,17 @@ def load(vtna,config):
                             sniv.begin = sortie.brief
                             sniv.end = sortie.wave.times["Flyer"].end + stud.crewRest
                             stud.snivs[0]=sniv
+            p = row["plane_tail_number"]
+            if row["status"] == 'scheduled' and p in vtna.planes and row["sked_flight_hours"] != None:
+                vtna.planes[p].hours -= float(row["sked_flight_hours"])
+
 
         for s in vtna.students:
             stud = vtna.students[s]
             i=1
             for event in stud.findPossible(1,True):
-                print 'student ', s, 'possible event ', event.id
+                if verbose:
+                    print 'student ', s, 'possible event ', event.id
                 if i==1:
                     stud.nextEvent = event
                 i=i+1
@@ -390,8 +404,6 @@ def writeToDatabase(vtna,config):
                 #for row in rows:
             if row != None:
                 sked.id = row["schedule_ID"]
-                if verbose:
-                    print sked.id
                 cur.execute("DELETE FROM student_sortie WHERE schedule_ID=%s",(sked.id))
                 cur.execute("DELETE FROM sortie WHERE schedule_ID=%s",(sked.id))
                 #Delete student sorties?
@@ -429,6 +441,7 @@ def writeToDatabase(vtna,config):
                             ss.event.flightHours,
                             ss.event.instructionalHours,
                             sortie.plane.id))
+                print "Schedule for %s written to database"%(day)
 
 if __name__ == '__main__':
     main()
