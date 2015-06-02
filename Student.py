@@ -11,6 +11,7 @@
 
 from Flyer import Flyer
 from datetime import timedelta
+from datetime import datetime
 from sets import Set
 class Student(Flyer):
     """Student implementation of Flyer class. Adds a next event, onwing, partner, priority"""
@@ -21,7 +22,7 @@ class Student(Flyer):
         self.nextEvent = None
         self.onwing = None #Instructor object
         self.partner = None #Student object
-        self.priority = 1
+        self.priority = None
         self.lastFlight = None
         self.syllabus = None
         self.resourceType = "Student"
@@ -78,13 +79,25 @@ class Student(Flyer):
 
 
     def getPriority(self):
-        if self.priority != None:
-            return self.priority
-        else:
-            return 1
+        if self.priority == None:
+            e = self.getNextEvent()
+            if e != 10:
+                p = 2*(10-e.id)
+            else:
+                p = 20
+            days = 0
+            if self.lastFlight != None:
+                interval = datetime.combine(self.squadron.schedules[1].date,datetime.min.time()) - self.lastFlight
+                d = interval.days + interval.seconds/(24*3600)
+                if d>=3:
+                    p += 7 + d
+            self.priority = p/10.0
+        return self.priority
 
     def getNextEvent(self):
-        return min(self.findPossible(1,True))
+        if self.nextEvent == None:
+            self.nextEvent = min(self.findPossible(1,True))
+        return self.nextEvent
 
 
 def main():

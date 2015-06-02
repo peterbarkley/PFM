@@ -35,18 +35,18 @@ def main():
     vtna.verbose = config['verbose']
     vtna.timeLimit = config['timelimit']
     vtna.backToBack = config['backtoback']
+    days = config['days']
     if verbose:
         print "Loading model from database"
     load(vtna,config)
     if verbose:
         print "Solving model"
-    solved = vtna.writeSchedules()
-    if solved:
-        if verbose:
-            print "Writing model to database"
-        writeToDatabase(vtna,config)
+    vtna.writeSchedules()
+    if verbose:
+        print "Writing model to database"
+    writeToDatabase(vtna,config)
     #if verbose: print "Date loaded"
-    return 0
+
 
 def load(vtna,config):
 
@@ -61,10 +61,12 @@ def load(vtna,config):
             print "Database version : %s " % ver
 
         cur = con.cursor(mdb.cursors.DictCursor)
-        days = config['days']
+
         #Loop over schedule table where not published and flight_day != NULL and add schedules for each flight_day
-        cur.execute("SELECT * FROM schedule WHERE (published = FALSE) LIMIT %s",(days)) # AND NOT flight_day = NULL
-        i=1
+        cur.execute("SELECT * FROM schedule WHERE (published = FALSE)") # AND NOT flight_day = NULL
+        rows = cur.fetchall()
+
+        i = 1
         priorities = {}
         priorities[1]=1.0
         priorities[2]=0.5
@@ -74,25 +76,24 @@ def load(vtna,config):
         priorities[6]=0.2
         priorities[7]=0.2
 
-        rows = cur.fetchall()
-
+        days = config['days']
         for row in rows:
-            #i = int(row["flight_day"])
-            day = row["day"]
-            sked=Schedule(day)
-            sked.flyDay = i
-            sked.id = int(row["schedule_ID"])
+            if i <= days:
+                #i = int(row["flight_day"])
+                day = row["day"]
+                sked=Schedule(day)
+                sked.flyDay = i
+                sked.id = int(row["schedule_ID"])
 
-            #Set priority
-            """if row["priority"]!=None:
-                sked.priority = float(row["priority"])"""
-            sked.priority = priorities[i]
-            if verbose:
-                print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %d '% (sked.id, sked.flyDay, day, sked.priority)
-            vtna.schedules[i]=sked
-            i = i + 1
-
-        vtna.totalFlightDays = len(rows)
+                #Set priority
+                """if row["priority"]!=None:
+                    sked.priority = float(row["priority"])"""
+                sked.priority = priorities[i]
+                if verbose:
+                    print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %s '% (sked.id, sked.flyDay, day,sked.priority)
+                vtna.schedules[i]=sked
+                i = i+1
+        vtna.totalFlightDays = days
 
         #Find waves
         cur.execute("SELECT * FROM wave")
@@ -101,7 +102,7 @@ def load(vtna,config):
         for row in rows:
             waves[int(row["wave_ID"])]=row
 
-        #Create waves for each schedule
+        #Create waves for each schedule. Having no waves makes the schedule blank.
         for d in vtna.schedules:
             sked = vtna.schedules[d]
             sked.waves = {}
@@ -154,14 +155,8 @@ def load(vtna,config):
             p =row["tail_number"]
             plane = Plane(p)
             plane.planetype = row["plane_type_ID"]
-            ni = None
-            tach = None
-            if row["next_inspection"] != None:
-                ni = float(row["next_inspection"])
-            if row["tach"] != None:
-                tach = float(row["tach"])
-            if ni != None and tach != None and ni > tach:
-                plane.hours = ni-tach
+            if row["next_inspection"] != None and row["tach"] != None:
+                plane.hours = float(row["next_inspection"])-float(row["tach"])
             if (row["max_cargo"]!= 0 and row["max_cargo"]!= None):
                 plane.maxWeight = row["max_cargo"]
             if row["priority"] != None:
@@ -214,8 +209,6 @@ def load(vtna,config):
             stud.syllabus = int(row["syllabus_ID"])
             if row["priority"] != None:
                 stud.priority = float(row["priority"])
-            if row["last_flight"]!=None:
-                stud.lastFlight = row["last_flight"]
             cfi = row["onwing_CFI_ID"]
             if cfi in vtna.instructors:
                 #if verbose: print "Add instructor",cfi
@@ -344,15 +337,13 @@ def load(vtna,config):
 
         for s in vtna.students:
             stud = vtna.students[s]
-            print stud.getNextEvent()
-            print stud.getPriority()
-            """i=1
+            i=1
             for event in stud.findPossible(1,True):
                 if verbose:
                     print 'student ', s, 'possible event ', event.id
                 if i==1:
                     stud.nextEvent = event
-                i=i+1"""
+                i=i+1
 
 
         #Loop over instructor preferences

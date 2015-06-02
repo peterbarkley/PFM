@@ -104,31 +104,8 @@ class Squadron(object):
         """
         # Solve the model using the tuned parameters
         self.m.optimize()
-
-        model = self.m
-        if model.status == GRB.status.INF_OR_UNBD:
-            # Turn presolve off to determine whether model is infeasible
-            # or unbounded
-            model.setParam(GRB.param.presolve, 0)
-            model.optimize()
-
-        if model.status == GRB.status.OPTIMAL:
-            print('Optimal objective: %g' % model.objVal)
-            model.write('model.sol')
-            self.outputModel()
-            return True
-        elif model.status != GRB.status.INFEASIBLE:
-            print('Optimization was stopped with status %d' % model.status)
-            model.write('model.sol')
-            return False
-        else:
-            # Model is infeasible - compute an Irreducible Inconsistent Subsystem (IIS)
-            print('')
-            print('Model is infeasible')
-            model.computeIIS()
-            model.write("model.ilp")
-            print("IIS written to file 'model.ilp'")
-            return False
+        self.outputModel()
+        return True
 
 
     #Creates the Decision Variables for the model
@@ -149,9 +126,10 @@ class Squadron(object):
                             stud = self.students[s]
                             if stud.qualified(plane):
                                 for event in stud.events(d,wave):
+
                                     #s: student id, plane: plane object, d: date object, w: schedule wave dictionary key, e: event object
                                     self.sevents[s,p,d,w,event.id]=self.m.addVar(vtype=GRB.BINARY,name='sevent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(stud) + '_' + str(event)) #+1 to obj should be implied
-                                    objective.add((1+event.flightHours*plane.priority/20)*self.schedules[d].priority*wave.priority*stud.getPriority()*self.sevents[s,p,d,w,event.id])
+                                    objective.add((1+event.flightHours*plane.priority)*self.schedules[d].priority*wave.priority*stud.getPriority()*self.sevents[s,p,d,w,event.id])
                                     #studexpr.add(dcoeff[d]*wcoeff[w]*sprior[s]*sevents[s,p,d,w,e])
                                     if self.verbose:
                                         print "creating variable for student %s, plane %s, day %s, wave %s, event %s, multiplier %s"%(s,p,d,w,event.id, self.schedules[d].priority*wave.priority*stud.priority)

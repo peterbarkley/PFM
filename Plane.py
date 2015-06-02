@@ -20,7 +20,7 @@ class Plane(Resource):
         self.stagger = 0 #Id of the stagger value from the start of the wave for this aircraft
         self.resourceType = "Plane"
         self.hours = 100.0
-        self.priority = 3 #1-5, 1 is high pri, 5 is low pri
+        self.priority = 0 #1-5, 1 is high pri, 5 is low pri
         self.target = {} #Dictionary of target flight hours for each flyday {1: 12.5 2: 5.0 3:12.5}
 
 
