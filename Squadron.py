@@ -112,7 +112,7 @@ class Squadron(object):
             model.setParam(GRB.param.presolve, 0)
             model.optimize()
 
-        if model.status == GRB.status.OPTIMAL:
+        if model.status == GRB.status.OPTIMAL or GRB.status.TIME_LIMIT:
             print('Optimal objective: %g' % model.objVal)
             model.write('model.sol')
             self.outputModel()
@@ -215,6 +215,18 @@ class Squadron(object):
         for d in self.schedules:
             sked = self.schedules[d]
             day = sked.date
+            #Exclusive wave loop for planes
+            for p, plane in self.planes.iteritems():
+                for w in sked.exclusiveWaves["Plane"]:
+                    wave1=sked.waves[w[0]]
+                    wave2=sked.waves[w[1]]
+                    expr = LinExpr()
+                    for i, inst in self.instructors.iteritems():
+                        if inst.qualified(plane) and plane.available(day,wave1) and plane.available(day,wave2):
+                            expr.add(self.ievents[i,p,d,w[0]])
+                            expr.add(self.ievents[i,p,d,w[1]])
+                    self.m.addConstr(expr <=1, 'Plane_No_Exclusive_Wave_%s_%s_%d_%d' % (p,d,w[0],w[1]))
+
             for w in sked.waves:
                 wave = sked.waves[w]
                 #This is the onePlanePerWave loop
@@ -263,13 +275,12 @@ class Squadron(object):
                                     maxStuds = min(maxStuds,event.maxStudents)
                                     maxStudExpr.add(self.sevents[s,p,d,w,event.id])
                                     if event.flightHours > 0.0:
-                                        maxWeightExpr.add(stud.weight*self.sevents[s,p,d,w,event.id])
+                                        maxWeightExpr.add(stud.weight*self.sevents[s,p,d,w,event.id]/wave.studentMultiple)
                         self.m.addConstr(maxStudExpr <= wave.studentMultiple*maxStuds,'MaxStuds_%s_%s_%d' % (p,d,w))
                         if self.verbose:
                             print 'Max studs is %d'%(maxStuds)
-                        self.m.addConstr(maxWeightExpr <= plane.maxWeight/wave.studentMultiple,'Limt max weight for plane %s on day %d during wave %d' % (p,d,w))
+                        self.m.addConstr(maxWeightExpr <= plane.maxWeight,'Limt max weight for plane %s on day %d during wave %d' % (p,d,w))
                         #print 'Limit max weight for plane %s on day %d during wave %d' % (p,d,w)
-
 
             for i in self.instructors:
                 inst = self.instructors[i]

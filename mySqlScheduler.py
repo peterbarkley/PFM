@@ -73,6 +73,9 @@ def load(vtna,config):
         priorities[5]=0.2
         priorities[6]=0.2
         priorities[7]=0.2
+        priorities[8]=0.2
+        priorities[9]=0.2
+        priorities[10]=0.2
 
         rows = cur.fetchall()
 
@@ -342,11 +345,11 @@ def load(vtna,config):
                 vtna.planes[p].hours -= float(row["sked_flight_hours"])
 
 
-        for s in vtna.students:
+        """for s in vtna.students:
             stud = vtna.students[s]
             print stud.getNextEvent()
             print stud.getPriority()
-            """i=1
+            i=1
             for event in stud.findPossible(1,True):
                 if verbose:
                     print 'student ', s, 'possible event ', event.id
@@ -402,6 +405,7 @@ def createWaves(sked,rows,waves):
         w.times["Flyer"].end = end_time
         w.schedule = sked
         w.priority = float(row["priority"])
+        w.studentMultiple = int(wave_entry["student_multiple"])
         sked.waves[i]=w
     sked.findExclusiveWaves()
 
