@@ -91,7 +91,7 @@ class Student(Flyer):
                 d = interval.days + interval.seconds/(24*3600)
                 if d>=3:
                     p += 7 + d
-            self.priority = p/10.0
+            self.priority = p/5.0
         return self.priority
 
     def getNextEvent(self):
