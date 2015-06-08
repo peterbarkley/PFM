@@ -34,6 +34,7 @@ class Squadron(object):
         self.schedules = {} #Dictionary of schedules to be written like {1:Schedule(date(2015,3,27)),2:Schedule(date...}
         self.sevents = {} #Dictionary containing decision variables for all possible student sorties within date range
         self.ievents = {} #Dictionary containing decision variables for all possible instructor sorties within date range
+        self.maintenance = {}
         self.m = Model()
         self.totalFlightDays = 1
         self.timeLimit = 120
@@ -112,7 +113,7 @@ class Squadron(object):
             model.setParam(GRB.param.presolve, 0)
             model.optimize()
 
-        if model.status == GRB.status.OPTIMAL or GRB.status.TIME_LIMIT:
+        if model.status == GRB.status.OPTIMAL or model.status == GRB.status.TIME_LIMIT:
             print('Optimal objective: %g' % model.objVal)
             model.write('model.sol')
             self.outputModel()
@@ -142,6 +143,7 @@ class Squadron(object):
             day = sked.date
             for p in self.planes:
                 plane = self.planes[p]
+                self.maintenance[p,d]=self.m.addVar(vtype=GRB.BINARY,name='maintenance_'+str(d)+'_'+str(p))
                 for w in self.schedules[d].waves: #This is a dictionary key integer
                     wave = self.schedules[d].waves[w]
                     if plane.available(day,wave):
@@ -204,13 +206,21 @@ class Squadron(object):
         for p, plane in self.planes.iteritems():
             plane_hours = LinExpr()
             for d, sked in self.schedules.iteritems():
+                daily_hours = LinExpr()
                 for w, wave in sked.waves.iteritems():
                     if plane.available(sked.date,wave):
                         for s, stud in self.students.iteritems():
                             if stud.qualified(plane):
                                 for event in stud.events(d,wave):
                                     plane_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
-            self.m.addConstr(plane_hours<=plane.hours,'planeHours_%s'%(p))
+                                    daily_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
+                self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
+                if d>1:
+                    self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-1]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
+                if d>2:
+                    self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-2]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
+                    self.m.addConstr(1-self.maintenance[p,d-2]>=self.maintenance[p,d-1]+self.maintenance[p,d])
+                self.m.addConstr(plane_hours<=plane.hours+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),'planeHours_%s_%s'%(p,d))
 
         for d in self.schedules:
             sked = self.schedules[d]
@@ -457,8 +467,8 @@ class Squadron(object):
 
     #This function should take the output of an optimized model and write it as sorties and student sorties into the correct flight schedule
     def outputModel(self):
-        if self.verbose:
-            for v in self.m.getVars():
+        if True:
+            for i,v in self.maintenance.iteritems():
                 if v.x == 1:
                     print('%s %g' % (v.varName, v.x))
         for d in self.schedules:

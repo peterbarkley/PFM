@@ -70,12 +70,12 @@ def load(vtna,config):
         priorities[2]=0.5
         priorities[3]=0.3
         priorities[4]=0.2
-        priorities[5]=0.2
-        priorities[6]=0.2
-        priorities[7]=0.2
-        priorities[8]=0.2
-        priorities[9]=0.2
-        priorities[10]=0.2
+        priorities[5]=0.18
+        priorities[6]=0.16
+        priorities[7]=0.14
+        priorities[8]=0.12
+        priorities[9]=0.11
+        priorities[10]=0.1
 
         rows = cur.fetchall()
 
@@ -163,8 +163,10 @@ def load(vtna,config):
                 ni = float(row["next_inspection"])
             if row["tach"] != None:
                 tach = float(row["tach"])
-            if ni != None and tach != None and ni > tach:
+            if ni != None and tach != None and ni >= tach:
                 plane.hours = ni-tach
+            if ni != None and tach != None and ni < tach:
+                plane.hours = 0.0
             if (row["max_cargo"]!= 0 and row["max_cargo"]!= None):
                 plane.maxWeight = row["max_cargo"]
             if row["priority"] != None:
@@ -342,7 +344,11 @@ def load(vtna,config):
                             stud.snivs[0]=sniv
             p = row["plane_tail_number"]
             if row["status"] == 'scheduled' and p in vtna.planes and row["sked_flight_hours"] != None:
-                vtna.planes[p].hours -= float(row["sked_flight_hours"])
+                if (vtna.planes[p].hours - float(row["sked_flight_hours"])) >= 0:
+                    vtna.planes[p].hours -= float(row["sked_flight_hours"])
+                else:
+                    vtna.planes[p].hours = 0.0
+
 
 
         """for s in vtna.students:
