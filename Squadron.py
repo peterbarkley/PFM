@@ -220,7 +220,7 @@ class Squadron(object):
                 if d>2:
                     self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-2]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
                     self.m.addConstr(1-self.maintenance[p,d-2]>=self.maintenance[p,d-1]+self.maintenance[p,d])
-                self.m.addConstr(plane_hours<=plane.hours+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),'planeHours_%s_%s'%(p,d))
+                self.m.addConstr(plane_hours<=plane.hours+0.9+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),'planeHours_%s_%s'%(p,d))
 
         for d in self.schedules:
             sked = self.schedules[d]

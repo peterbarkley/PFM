@@ -310,10 +310,10 @@ def load(vtna,config):
                 s.studentSorties = []
                 s.takeoff = row["scheduled_takeoff"]
                 s.land = row["scheduled_land"]
-                if row["wave_ID"] != None:
+                if row["wave_ID"] in vtna.today.waves:
                     s.wave = vtna.today.waves[int(row["wave_ID"])] #Wave ojbect
                 else:
-                    s.wave = vtna.today.waves[1] #This is a bad hack. Ought to use a function to determine nearest wave in today's set of waves
+                    s.wave = vtna.today.waves[5] #This is a bad hack. Ought to use a function to determine nearest wave in today's set of waves
                 vtna.today.sorties[id]=s
 
         #Create sorties and studentSorties from the entries in those table corresponding to the most recent published sked
@@ -337,9 +337,10 @@ def load(vtna,config):
                         if row["plane_tail_number"] in vtna.planes:
                             sortie.plane = vtna.planes[row["plane_tail_number"]]
                         sortie.studentSorties.append(ss)
-                        if vtna.today.date == vtna.schedules[1].date+timedelta(days=1):
+                        if vtna.today.date == (vtna.schedules[1].date-timedelta(days=1)):
+                            print "happy dance", stud.id, sortie.wave.id
                             sniv = Sniv()
-                            sniv.begin = sortie.brief
+                            sniv.begin = sortie.wave.times["Flyer"].begin
                             sniv.end = sortie.wave.times["Flyer"].end + stud.crewRest
                             stud.snivs[0]=sniv
             p = row["plane_tail_number"]
