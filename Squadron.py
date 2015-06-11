@@ -40,6 +40,8 @@ class Squadron(object):
         self.timeLimit = 120
         self.verbose = True
         self.backToBack = False
+        self.calculateMaintenance = False
+        self.maxPlanesPerWave = 16
 
     #Returns the waves that a plane can fly on a given day
     def waves(self,day,wave,plane):
@@ -143,7 +145,8 @@ class Squadron(object):
             day = sked.date
             for p in self.planes:
                 plane = self.planes[p]
-                self.maintenance[p,d]=self.m.addVar(vtype=GRB.BINARY,name='maintenance_'+str(d)+'_'+str(p))
+                if self.calculateMaintenance:
+                    self.maintenance[p,d]=self.m.addVar(vtype=GRB.BINARY,name='maintenance_'+str(d)+'_'+str(p))
                 for w in self.schedules[d].waves: #This is a dictionary key integer
                     wave = self.schedules[d].waves[w]
                     if plane.available(day,wave):
@@ -193,35 +196,36 @@ class Squadron(object):
     #This function should construct a model that meets all constraints and encompasses all requested schedules
     def constructModel(self):
         #Do not exceed hours remaining on aircraft
-        """for p, plane in self.planes.iteritems():
-            self.m.addConstr(quicksum(self.sevents[stud.id,p,sked.flyDay,wave.id,event.id]*self.syllabus[event.id].flightHours
-            for sked in self.schedules.itervalues()
-            for wave in self.schedules[sked.flyDay].waves.itervalues()
-            for stud in self.students.itervalues()
-            for event in stud.events(sked.flyDay,wave)
-            if plane.available(sked.date,wave)
-            and stud.qualified(plane)) <= plane.hours,'planeHours_%s'%(p))
-"""
-        #Don't exceed remaining plane hours
-        for p, plane in self.planes.iteritems():
-            plane_hours = LinExpr()
-            for d, sked in self.schedules.iteritems():
-                daily_hours = LinExpr()
-                for w, wave in sked.waves.iteritems():
-                    if plane.available(sked.date,wave):
-                        for s, stud in self.students.iteritems():
-                            if stud.qualified(plane):
-                                for event in stud.events(d,wave):
-                                    plane_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
-                                    daily_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
-                self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
-                if d>1:
-                    self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-1]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
-                if d>2:
-                    self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-2]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
-                    self.m.addConstr(1-self.maintenance[p,d-2]>=self.maintenance[p,d-1]+self.maintenance[p,d])
-                self.m.addConstr(plane_hours<=plane.hours+0.9+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),'planeHours_%s_%s'%(p,d))
+        if self.calculateMaintenance:
+            for p, plane in self.planes.iteritems():
+                plane_hours = LinExpr()
+                for d, sked in self.schedules.iteritems():
+                    daily_hours = LinExpr()
+                    for w, wave in sked.waves.iteritems():
+                        if plane.available(sked.date,wave):
+                            for s, stud in self.students.iteritems():
+                                if stud.qualified(plane):
+                                    for event in stud.events(d,wave):
+                                        plane_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
+                                        daily_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
+                    self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
+                    if d>1:
+                        self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-1]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
+                    if d>2:
+                        self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-2]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
+                        self.m.addConstr(1-self.maintenance[p,d-2]>=self.maintenance[p,d-1]+self.maintenance[p,d])
+                    self.m.addConstr(plane_hours<=plane.hours+0.9+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),'planeHours_%s_%s'%(p,d))
+        else:
+            for p, plane in self.planes.iteritems():
+                self.m.addConstr(quicksum(self.sevents[stud.id,p,sked.flyDay,wave.id,event.id]*self.syllabus[event.id].flightHours
+                for sked in self.schedules.itervalues()
+                for wave in self.schedules[sked.flyDay].waves.itervalues()
+                for stud in self.students.itervalues()
+                for event in stud.events(sked.flyDay,wave)
+                if plane.available(sked.date,wave)
+                and stud.qualified(plane)) <= plane.hours,'planeHours_%s'%(p))
 
+        #Don't exceed remaining plane hours
         for d in self.schedules:
             sked = self.schedules[d]
             day = sked.date
@@ -239,6 +243,12 @@ class Squadron(object):
 
             for w in sked.waves:
                 wave = sked.waves[w]
+                #This restricts the planes in any particular wave if desired
+                if sked.maxPlanesPerWave < 16:
+                    self.m.addConstr(quicksum(self.ievents[i,p,d,w] for i in self.instructors for p in self.planes if (self.planes[p].available(day,wave) and self.instructors[i].qualified(self.planes[p]) ) ) <= sked.maxPlanesPerWave,'Max_planes_per_wave_%s_%s' % (d,w))
+                    for p, plane in self.planes.iteritems():
+                        self.m.addConstr(quicksum(event.flightHours*self.sevents[s,p,d,w,event.id] for s, stud in self.students.iteritems() for event in stud.events(d,wave) if stud.qualified(plane)) <= wave.planeHours(),'Events_fit_in_wave_%s_day_%s_plane_%s' % (w,d,p) )
+
                 #This is the onePlanePerWave loop
                 for i in self.instructors:
                     inst = self.instructors[i]
@@ -467,10 +477,10 @@ class Squadron(object):
 
     #This function should take the output of an optimized model and write it as sorties and student sorties into the correct flight schedule
     def outputModel(self):
-        if True:
+        if self.calculateMaintenance:
             for i,v in self.maintenance.iteritems():
                 if v.x == 1:
-                    print('%s %g' % (v.varName, v.x))
+                    print('Perform maintenance on %s' % (v.varName))
         for d in self.schedules:
             sked = self.schedules[d]
             day = sked.date

@@ -50,7 +50,13 @@ class Wave(object):
         else:
             return True
 
-
+    def planeHours(self):
+        diff = self.times["Plane"].end - self.times["Plane"].begin
+        fudge = 0
+        h = diff.seconds/3600
+        if h >= 2.0:
+            fudge = .25
+        return h - fudge
 
 
 

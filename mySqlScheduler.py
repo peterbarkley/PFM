@@ -35,6 +35,9 @@ def main():
     vtna.verbose = config['verbose']
     vtna.timeLimit = config['timelimit']
     vtna.backToBack = config['backtoback']
+    if 'maxPlanesPerWave' in config:
+        vtna.maxPlanesPerWave = config['maxPlanesPerWave']
+
     if verbose:
         print "Loading model from database"
     load(vtna,config)
@@ -62,6 +65,9 @@ def load(vtna,config):
 
         cur = con.cursor(mdb.cursors.DictCursor)
         days = config['days']
+        if days > 3:
+            vtna.calculateMaintenance = True
+
         #Loop over schedule table where not published and flight_day != NULL and add schedules for each flight_day
         cur.execute("SELECT * FROM schedule WHERE (published = FALSE) LIMIT %s",(days)) # AND NOT flight_day = NULL
         i=1
@@ -85,6 +91,10 @@ def load(vtna,config):
             sked=Schedule(day)
             sked.flyDay = i
             sked.id = int(row["schedule_ID"])
+            ppw = row["planes_per_wave"]
+            if ppw != None and ppw != 0:
+                sked.maxPlanesPerWave = int(row["planes_per_wave"])
+
 
             #Set priority
             """if row["priority"]!=None:
@@ -338,7 +348,7 @@ def load(vtna,config):
                             sortie.plane = vtna.planes[row["plane_tail_number"]]
                         sortie.studentSorties.append(ss)
                         if vtna.today.date == (vtna.schedules[1].date-timedelta(days=1)):
-                            print "happy dance", stud.id, sortie.wave.id
+                            #print "happy dance", stud.id, sortie.wave.id
                             sniv = Sniv()
                             sniv.begin = sortie.wave.times["Flyer"].begin
                             sniv.end = sortie.wave.times["Flyer"].end + stud.crewRest

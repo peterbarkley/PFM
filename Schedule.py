@@ -39,6 +39,7 @@ class Schedule(object):
         self.flyDay = 1
         self.id = None
         self.watches = {} #Dictionary of watch types needs on this day
+        self.maxPlanesPerWave = 16
 
     def createWaves(self):
         self.waves = {}
