@@ -35,8 +35,8 @@ def main():
     vtna.verbose = config['verbose']
     vtna.timeLimit = config['timelimit']
     vtna.backToBack = config['backtoback']
-    if 'maxPlanesPerWave' in config:
-        vtna.maxPlanesPerWave = config['maxPlanesPerWave']
+    if 'sufficientTime' in config:
+        vtna.sufficientTime = config['sufficientTime']
 
     if verbose:
         print "Loading model from database"
@@ -422,7 +422,8 @@ def createWaves(sked,rows,waves):
         w.times["Flyer"].end = end_time
         w.schedule = sked
         w.priority = float(row["priority"])
-        w.studentMultiple = int(wave_entry["student_multiple"])
+        if wave_entry["student_multiple"] != None:
+            w.studentMultiple = int(wave_entry["student_multiple"])
         sked.waves[i]=w
     sked.findExclusiveWaves()
 

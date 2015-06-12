@@ -55,7 +55,7 @@ class Wave(object):
         fudge = 0
         h = diff.seconds/3600
         if h >= 2.0:
-            fudge = .25
+            fudge = .2
         return h - fudge
 
 

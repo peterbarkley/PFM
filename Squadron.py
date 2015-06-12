@@ -42,6 +42,7 @@ class Squadron(object):
         self.backToBack = False
         self.calculateMaintenance = False
         self.maxPlanesPerWave = 16
+        self.sufficientTime = 0
 
     #Returns the waves that a plane can fly on a given day
     def waves(self,day,wave,plane):
@@ -214,7 +215,7 @@ class Squadron(object):
                     if d>2:
                         self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-2]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
                         self.m.addConstr(1-self.maintenance[p,d-2]>=self.maintenance[p,d-1]+self.maintenance[p,d])
-                    self.m.addConstr(plane_hours<=plane.hours+0.9+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),'planeHours_%s_%s'%(p,d))
+                    self.m.addConstr(plane_hours<=plane.hours+0.5+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),'planeHours_%s_%s'%(p,d))
         else:
             for p, plane in self.planes.iteritems():
                 self.m.addConstr(quicksum(self.sevents[stud.id,p,sked.flyDay,wave.id,event.id]*self.syllabus[event.id].flightHours
@@ -246,8 +247,11 @@ class Squadron(object):
                 #This restricts the planes in any particular wave if desired
                 if sked.maxPlanesPerWave < 16:
                     self.m.addConstr(quicksum(self.ievents[i,p,d,w] for i in self.instructors for p in self.planes if (self.planes[p].available(day,wave) and self.instructors[i].qualified(self.planes[p]) ) ) <= sked.maxPlanesPerWave,'Max_planes_per_wave_%s_%s' % (d,w))
+                #This requires sufficient time for the flights to be completed
+                if self.sufficientTime:
                     for p, plane in self.planes.iteritems():
-                        self.m.addConstr(quicksum(event.flightHours*self.sevents[s,p,d,w,event.id] for s, stud in self.students.iteritems() for event in stud.events(d,wave) if stud.qualified(plane)) <= wave.planeHours(),'Events_fit_in_wave_%s_day_%s_plane_%s' % (w,d,p) )
+                        if plane.available(day,wave):
+                            self.m.addConstr(quicksum(event.flightHours*self.sevents[s,p,d,w,event.id] for s, stud in self.students.iteritems() for event in stud.events(d,wave) if stud.qualified(plane)) <= wave.planeHours(),'Events_fit_in_wave_%s_day_%s_plane_%s' % (w,d,p) )
 
                 #This is the onePlanePerWave loop
                 for i in self.instructors:
