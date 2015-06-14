@@ -81,7 +81,7 @@ class Student(Flyer):
     def getPriority(self):
         if self.priority == None:
             e = self.getNextEvent()
-            if e != 10:
+            if e.id != 10:
                 p = 2*(10-e.id)
             else:
                 p = 20
