@@ -157,7 +157,7 @@ class Squadron(object):
                                 for event in stud.events(d,wave):
                                     #s: student id, plane: plane object, d: date object, w: schedule wave dictionary key, e: event object
                                     self.sevents[s,p,d,w,event.id]=self.m.addVar(vtype=GRB.BINARY,name='sevent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(stud) + '_' + str(event)) #+1 to obj should be implied
-                                    objective.add((1+event.flightHours*plane.priority/20)*self.schedules[d].priority*wave.priority*stud.getPriority()*self.sevents[s,p,d,w,event.id])
+                                    objective.add(self.schedules[d].priority*wave.priority*stud.getPriority()*self.sevents[s,p,d,w,event.id])
                                     #studexpr.add(dcoeff[d]*wcoeff[w]*sprior[s]*sevents[s,p,d,w,e])
                                     if self.verbose:
                                         print "creating variable for student %s, plane %s, day %s, wave %s, event %s, multiplier %s"%(s,p,d,w,event.id, self.schedules[d].priority*wave.priority*stud.priority)
@@ -165,7 +165,7 @@ class Squadron(object):
                             inst = self.instructors[i]
                             if inst.qualified(plane):
                                 self.ievents[i,p,d,w]=self.m.addVar(vtype=GRB.BINARY,name='ievent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(inst))
-                                objective.add(self.schedules[d].priority*inst.getPreference(d,w)*self.ievents[i,p,d,w])
+                                objective.add((1+wave.planeHours()*(6-plane.priority)/10)*self.schedules[d].priority*inst.getPreference(d,w)*self.ievents[i,p,d,w])
                                 if self.verbose:
                                     print 'creating variable for instructor %s, plane %s, day %s, wave %s, multiplier %s'%(i,p,d,w,self.schedules[d].priority*wave.priority*inst.getPreference(d,w))
 
@@ -318,9 +318,11 @@ class Squadron(object):
                     expr = LinExpr()
                     for p in self.planes:
                         plane = self.planes[p]
-                        if inst.qualified(plane) and plane.available(day,wave1) and plane.available(day,wave2):
-                            expr.add(self.ievents[i,p,d,w[0]])
-                            expr.add(self.ievents[i,p,d,w[1]])
+                        if inst.qualified(plane):
+                            if plane.available(day,wave1):
+                                expr.add(self.ievents[i,p,d,w[0]])
+                            if plane.available(day,wave2):
+                                expr.add(self.ievents[i,p,d,w[1]])
                     self.m.addConstr(expr <=1, 'Inst_No_Exclusive_Wave_%s_%s_%d_%d' % (i,d,w[0],w[1]))
                 #Don't fly an instructor more than their max events
                 maxEventExpr = LinExpr()

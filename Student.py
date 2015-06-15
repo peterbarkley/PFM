@@ -89,8 +89,10 @@ class Student(Flyer):
             if self.lastFlight != None:
                 interval = datetime.combine(self.squadron.schedules[1].date,datetime.min.time()) - self.lastFlight
                 d = interval.days + interval.seconds/(24*3600)
+                if d>=2:
+                    p += 2
                 if d>=3:
-                    p += 7 + d
+                    p += 5 + d
             self.priority = p/2.0
         return self.priority
 
