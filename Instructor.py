@@ -18,7 +18,7 @@ class Instructor(Flyer):
     def __init__(self, id):
         super(Instructor, self).__init__(id)
         self.check = False
-        self.priority = -0.01 #Needs to be negative. This encourages the model to schedule the minimum number of instructors
+        self.priority = -0.1 #Needs to be negative. This encourages the model to schedule the minimum number of instructors
         self.maxEvents = 3
         self.preferences = {} #1 is a high preference, 5 is a low preference
         self.resourceType = "Instructor"

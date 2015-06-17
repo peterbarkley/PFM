@@ -209,6 +209,7 @@ class Squadron(object):
                                     for event in stud.events(d,wave):
                                         plane_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
                                         daily_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
+                    #Plane cannot fly while in maintenance
                     self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
                     if d>1:
                         self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-1]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
@@ -217,6 +218,7 @@ class Squadron(object):
                         self.m.addConstr(1-self.maintenance[p,d-2]>=self.maintenance[p,d-1]+self.maintenance[p,d])
                     self.m.addConstr(plane_hours<=plane.hours+0.5+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),'planeHours_%s_%s'%(p,d))
         else:
+            #Don't exceed remaining plane hours
             for p, plane in self.planes.iteritems():
                 self.m.addConstr(quicksum(self.sevents[stud.id,p,sked.flyDay,wave.id,event.id]*self.syllabus[event.id].flightHours
                 for sked in self.schedules.itervalues()
@@ -226,7 +228,6 @@ class Squadron(object):
                 if plane.available(sked.date,wave)
                 and stud.qualified(plane)) <= plane.hours,'planeHours_%s'%(p))
 
-        #Don't exceed remaining plane hours
         for d in self.schedules:
             sked = self.schedules[d]
             day = sked.date
@@ -326,13 +327,16 @@ class Squadron(object):
                     self.m.addConstr(expr <=1, 'Inst_No_Exclusive_Wave_%s_%s_%d_%d' % (i,d,w[0],w[1]))
                 #Don't fly an instructor more than their max events
                 maxEventExpr = LinExpr()
+                maxHoursExpr = LinExpr()
                 for w in sked.waves:
                     wave = sked.waves[w]
                     for p in self.planes:
                         plane = self.planes[p]
                         if inst.qualified(plane) and plane.available(day,wave):
                             maxEventExpr.add(self.ievents[i,p,d,w])
+                            maxHoursExpr.add(self.ievents[i,p,d,w]*(wave.planeHours()-0.2))
                 self.m.addConstr(maxEventExpr<= inst.maxEvents,'InstMaxEvents_%s_%s'%(i,d))
+                self.m.addConstr(maxHoursExpr<= 8.0,'InstMaxHours_%s_%s'%(i,d))
 
             #One event per day for students unless followsImmediately
             #Set onwing,offwing,check flight instructor requirements
