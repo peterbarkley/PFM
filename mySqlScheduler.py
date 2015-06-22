@@ -101,7 +101,7 @@ def load(vtna,config):
                 sked.priority = float(row["priority"])"""
             sked.priority = priorities[i]
             if verbose:
-                print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %d '% (sked.id, sked.flyDay, day, sked.priority)
+                print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %s'% (sked.id, sked.flyDay, day, sked.priority)
             vtna.schedules[i]=sked
             i = i + 1
 
@@ -142,7 +142,7 @@ def load(vtna,config):
             e.instructionalHours = total_inst
             e.syllabus = int(row["syllabus_ID"])
             e.maxStudents = int(row["max_students"])
-            if row["follows_immediately"]:
+            if row["follows_immediately"] != None and int(row["follows_immediately"]) == 1:
                 e.followsImmediately = True
             vtna.syllabus[i]=e
 
@@ -213,6 +213,9 @@ def load(vtna,config):
             inst.maxEvents = row["max_events"]
             if row["C990"]:
                 inst.check = True
+            if row["paid"]:
+                inst.paid = 1
+
             vtna.instructors[c]=inst
         if verbose:
             print "Instructors loaded"
@@ -423,7 +426,7 @@ def createWaves(sked,rows,waves):
         w.schedule = sked
         w.priority = float(row["priority"])
         if wave_entry["student_multiple"] != None:
-            w.studentMultiple = int(wave_entry["student_multiple"])
+            w.studentMultiple = float(wave_entry["student_multiple"])
         sked.waves[i]=w
     sked.findExclusiveWaves()
 

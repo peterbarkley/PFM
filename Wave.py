@@ -26,26 +26,27 @@ class Wave(object):
         self.times["Instructor"] = self.times["Flyer"]
         self.studentMultiple = 1 #Allows double or triple waves
         self.schedule = None
-        self._canFollow = [id] #This includes itself, so for an out-and-in the student can have sequential events that can follow immediately both in the same wave
+        self._canFollow = [] #This includes itself, so for an out-and-in the student can have sequential events that can follow immediately both in the same wave
         self._canFollowCalculated = False
         self.crewRestHours = 12 #Max time between first brief and last debrief
 
     def __str__(self):
         return "wave"+str(self.id)
 
+    #Returns the set of waves that a student could be scheduled for and still make this one
     def canImmediatelyFollow(self):
         sked = self.schedule
         if sked != None and not self._canFollowCalculated:
             for w in sked.waves:
                 wave = sked.waves[w]
-                if  wave.times["Flyer"].end <= self.times["Flyer"].begin and self.times["Flyer"].end - wave.times["Flyer"].begin < timedelta(hours=self.crewRestHours):
+                if  (wave.times["Flyer"].end <= self.times["Flyer"].begin) and ((self.times["Flyer"].end - wave.times["Flyer"].begin )< timedelta(hours=self.crewRestHours)):
                     self._canFollow.append(w)
             self._canFollowCalculated = True
         return self._canFollow
 
     def first(self):
         self.canImmediatelyFollow()
-        if len(self._canFollow)>1:
+        if len(self._canFollow)>0:
             return False
         else:
             return True

@@ -22,16 +22,19 @@ class Instructor(Flyer):
         self.maxEvents = 3
         self.preferences = {} #1 is a high preference, 5 is a low preference
         self.resourceType = "Instructor"
-        self.paid = 1
+        self.paid = 0
 
     def setPreference(self,d,w,amount):
         self.preferences[(d,w)]=amount
 
     def getPreference(self,d,w):
+        pri = self.priority
+        if not self.paid:
+            pri = pri/10
         if (d,w) in self.preferences:
-            return self.priority*self.preferences[(d,w)]
+            return pri*self.preferences[(d,w)]
         else:
-            return 3*self.priority
+            return 3*pri
 
 
 def main():

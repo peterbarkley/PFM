@@ -26,7 +26,7 @@ class Student(Flyer):
         self.lastFlight = None
         self.syllabus = None
         self.resourceType = "Student"
-        self.crewRest = timedelta(hours=12)
+        self.crewRest = timedelta(hours=10)
         self.completedEvents = Set() #Set of events objects for each completed event
         self.scheduledEvents = Set() #Set of events objects for each currently scheduled event
         self._possibleEvents = {}

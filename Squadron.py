@@ -245,7 +245,7 @@ class Squadron(object):
 
             for w in sked.waves:
                 wave = sked.waves[w]
-                #This restricts the planes in any particular wave if desired
+                #This restricts the number of planes in any particular wave if desired
                 if sked.maxPlanesPerWave < 16:
                     self.m.addConstr(quicksum(self.ievents[i,p,d,w] for i in self.instructors for p in self.planes if (self.planes[p].available(day,wave) and self.instructors[i].qualified(self.planes[p]) ) ) <= sked.maxPlanesPerWave,'Max_planes_per_wave_%s_%s' % (d,w))
                 #This requires sufficient time for the flights to be completed
@@ -300,7 +300,7 @@ class Squadron(object):
                                     maxStuds = min(maxStuds,event.maxStudents)
                                     maxStudExpr.add(self.sevents[s,p,d,w,event.id])
                                     if event.flightHours > 0.0:
-                                        maxWeightExpr.add(stud.weight*self.sevents[s,p,d,w,event.id]/wave.studentMultiple)
+                                        maxWeightExpr.add(stud.weight/wave.studentMultiple*self.sevents[s,p,d,w,event.id])
                         self.m.addConstr(maxStudExpr <= wave.studentMultiple*maxStuds,'MaxStuds_%s_%s_%d' % (p,d,w))
                         if self.verbose:
                             print 'Max studs is %d'%(maxStuds)
@@ -335,7 +335,7 @@ class Squadron(object):
                         if inst.qualified(plane) and plane.available(day,wave):
                             maxEventExpr.add(self.ievents[i,p,d,w])
                             maxHoursExpr.add(self.ievents[i,p,d,w]*(wave.planeHours()-0.2))
-                self.m.addConstr(maxEventExpr<= inst.maxEvents,'InstMaxEvents_%s_%s'%(i,d))
+                #self.m.addConstr(maxEventExpr<= inst.maxEvents,'InstMaxEvents_%s_%s'%(i,d))
                 self.m.addConstr(maxHoursExpr<= 8.0,'InstMaxHours_%s_%s'%(i,d))
 
             #One event per day for students unless followsImmediately
@@ -418,17 +418,50 @@ class Squadron(object):
         for d in self.schedules:
             sked = self.schedules[d]
             day = sked.date
+            if d == 1:
+                if self.verbose:
+                    print 'Entered loop'
+                for s,stud in self.students.iteritems():
+                    if self.verbose:
+                        print 'Student %d'%(s)
+                    for event in stud.findPossible(d,True):
+                        if self.verbose:
+                            print 'event %d'%(event.id)
+                        for f in event.followingEvents:
+                            if f.followsImmediately:
+                                if self.verbose:
+                                    print 'event %d'%(f.id)
+                                for w, wave in sked.waves.iteritems():
+                                    if self.verbose:
+                                        print 'wave %d'%(w)
+                                    if not wave.first():
+                                        SameDayWavesExpr = LinExpr()
+                                        for precedingw in wave.canImmediatelyFollow():
+                                            if self.verbose:
+                                                print ' preceding wave %d'%(precedingw)
+                                            for p in self.planes:
+                                                plane=self.planes[p]
+                                                if stud.qualified(plane) and plane.available(d,sked.waves[precedingw]):
+                                                    SameDayWavesExpr.add(self.sevents[s,p,d,precedingw,event.id])
+                                        self.m.addConstr(SameDayWavesExpr>=quicksum(self.sevents[s,p,d,w,f.id] for p in self.planes if stud.qualified(self.planes[p]) and self.planes[p].available(d,wave)),
+                                        'Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(event,f,d,w,s))
+                                        if self.verbose:
+                                            print 'Same Day Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(event,f,d,w,s)
+
             nextDay = d+1
-            if d != self.totalFlightDays:
+            if d < self.totalFlightDays:
                 for s in self.students:
                     #print 'Looping for day %d and student %s'%(d,s)
                     stud = self.students[s]
                     for event in stud.findPossible(d,False):
-                        #print event
+                        #print 'Prior event %s'%(event)
                         for f in event.followingEvents:
+                            #print 'Following event %s'%(f)
                             followingEventExpr = LinExpr()
+                            #Build off of the previous sum of that event for prior days if it has been found
                             if (s,d,f.id) in precedingEventsExpr:
                                 precedingEventsExpr[(s,nextDay,f.id)]=precedingEventsExpr[(s,d,f.id)]
+                            #If this is the first day it is available, begin constructing the sum over that event.
                             else:
                                 precedingEventsExpr[(s,nextDay,f.id)]=LinExpr()
                             for w in sked.waves:
@@ -458,6 +491,7 @@ class Squadron(object):
                             if not f.followsImmediately:
                                 #print '%s follows %s'%(f,event)
                                 self.m.addConstr(precedingEventsExpr[(s,nextDay,f.id)]>=followingEventExpr,'Schedule %s before scheduling %s on day %d for student %s'%(event,f,nextDay,s))
+                                #print 'Schedule %s before scheduling %s on day %d for student %s'%(event,f,nextDay,s)
 
             for s in self.students:
                 #print 'Looping for day %d and student %s'%(d,s)
@@ -474,7 +508,7 @@ class Squadron(object):
                                             plane=self.planes[p]
                                             if stud.qualified(plane) and plane.available(day,sked.waves[precedingw]):
                                                 addedWavesExpr.add(self.sevents[s,p,d,precedingw,precedingEvent.id])
-                                self.m.addConstr(addedWavesExpr>=quicksum(self.sevents[s,p,d,w,f.id] for p in self.planes if stud.qualified(self.planes[p]) and plane.available(day,wave)),
+                                self.m.addConstr(addedWavesExpr>=quicksum(self.sevents[s,p,d,w,f.id] for p in self.planes if stud.qualified(self.planes[p]) and self.planes[p].available(day,wave)),
                                 'Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(precedingEvent,f,d,w,s))
                                 #print '%s immediately follows %s on day %d'%(f,precedingEvent,d)
 
