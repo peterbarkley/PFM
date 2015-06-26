@@ -109,6 +109,8 @@ def load(vtna, config):
             sdou.name = 'SDO_UI'
             dd = Watch(3)
             dd.name = 'Duty_Driver'
+            trb_ensign = Watch(5)
+            trb_ensign.name = 'TRB_Ensign'
             am_sdo = Sniv()
             am_sdo.begin = datetime.combine(sked.date,time(6))
             am_sdo.end = datetime.combine(sked.date,time(14))

@@ -91,6 +91,7 @@ def load(vtna,config):
             sked=Schedule(day)
             sked.flyDay = i
             sked.id = int(row["schedule_ID"])
+            sked.blank = row["blank"]
             ppw = row["planes_per_wave"]
             if ppw != None and ppw != 0:
                 sked.maxPlanesPerWave = int(row["planes_per_wave"])
@@ -117,10 +118,11 @@ def load(vtna,config):
         #Create waves for each schedule
         for d in vtna.schedules:
             sked = vtna.schedules[d]
-            sked.waves = {}
-            cur.execute("SELECT * FROM schedule_wave WHERE schedule_ID = %s",(sked.id))
-            rows = cur.fetchall()
-            createWaves(sked,rows,waves)
+            if not sked.blank:
+                sked.waves = {}
+                cur.execute("SELECT * FROM schedule_wave WHERE schedule_ID = %s",(sked.id))
+                rows = cur.fetchall()
+                createWaves(sked,rows,waves)
         if verbose:
             print "Waves loaded"
 
