@@ -26,16 +26,16 @@ class Squadron(object):
     """Meta object for scheduling program. Including lists of students, instructors, planes, and schedules, as well a syllabus of events for the students"""
 
     def __init__(self):
-        self.planes = {}
-        self.instructors = {}
-        self.students = {}
+        self.planes = {} #Dictionary of plane objects like {'106RA': Plane('106RA'), ... }
+        self.instructors = {}  #Dictionary of instructor objects like {9: Instructor(9), ... }
+        self.students = {}  #Dictionary of student objects like {19: Student(19), ... }
         self.syllabus = {} #Dictionary of syllabus events like {-3: Event(-3), -2: Event(-2), ... }
-        self.today = Schedule(date.today()) #Current schedule
+        self.today = Schedule(date.today()) #Current schedule object
         self.schedules = {} #Dictionary of schedules to be written like {1:Schedule(date(2015,3,27)),2:Schedule(date...}
         self.sevents = {} #Dictionary containing decision variables for all possible student sorties within date range
         self.ievents = {} #Dictionary containing decision variables for all possible instructor sorties within date range
-        self.maintenance = {}
-        self.m = Model()
+        self.maintenance = {} #Dictionary of maintenance decision variables for plane p on day d like {(p,d,):Gurobi DV object, ... }
+        self.m = Model() #Gurobi model
         self.totalFlightDays = 1
         self.timeLimit = 120
         self.verbose = True
@@ -43,6 +43,7 @@ class Squadron(object):
         self.calculateMaintenance = False
         self.maxPlanesPerWave = 16
         self.sufficientTime = 0
+        self.hardschedule = 0
 
     #Returns the waves that a plane can fly on a given day
     def waves(self,day,wave,plane):
@@ -345,6 +346,9 @@ class Squadron(object):
             #Require a qualified instructor for all events
             for s in self.students:
                 stud=self.students[s]
+                #Optional constraint to require students to be scheduled
+                if self.hardschedule and d==1:
+                    self.m.addConstr(quicksum(self.sevents[s,p,d,w,event.id] for p in self.planes for w, wave in sked.waves.iteritems() for event in stud.events(d,wave) if (stud.qualified(self.planes[p]) and self.planes[p].available(day,wave)) ) >= 1,                        'Require_student_%s_to_be_scheduled_for_event_%s'%(s,event.id))
                 onePerDay = LinExpr()
                 for w in sked.waves:
                     wave = sked.waves[w]

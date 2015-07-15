@@ -35,6 +35,7 @@ def main():
     vtna.verbose = config['verbose']
     vtna.timeLimit = config['timelimit']
     vtna.backToBack = config['backtoback']
+    vtna.hardschedule = config['hardschedule']
     if 'sufficientTime' in config:
         vtna.sufficientTime = config['sufficientTime']
 
