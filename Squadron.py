@@ -351,36 +351,42 @@ class Squadron(object):
                 stud=self.students[s]
                 #Optional constraint to require students to be scheduled
                 if self.hardschedule and d==1 and stud.findPossible(d,True) != Set():
-                    print stud.findPossible(d,True)
                     self.m.addConstr(quicksum(self.sevents[s,p,d,w,event.id] for p in self.planes for w, wave in sked.waves.iteritems() for event in stud.events(d,wave) if (stud.qualified(self.planes[p]) and self.planes[p].available(day,wave)) ) >= 1,                        'Require_student_%s_to_be_scheduled'%(s))
                 onePerDay = LinExpr()
                 for w in sked.waves:
                     wave = sked.waves[w]
                     available = 1
+                    availstring = 'student_available'
                     if not stud.available(day,wave):
                         available = 0
-                    for p in self.planes:
-                        plane = self.planes[p]
-                        if stud.qualified(plane) and plane.available(day,wave):
-                                for event in stud.events(d,wave):
-                                    e=event.id
-                                    if not event.followsImmediately:
-                                        onePerDay.add(self.sevents[s,p,d,w,e])
-                                    if event.onwing:
-                                        self.m.addConstr(self.sevents[s,p,d,w,e] <= available*self.ievents[stud.onwing.id,p,d,w],'withOnWing_%s_%s_%s_%s_%d_%s'%(s, stud.onwing, p, d, w, event))
-                                    elif event.offwing and not event.check:
-                                        self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].qualified(plane)),
-                                        'offwing_%s_%s_%s_%d'%(s,p,d,w))
-                                    else:
-                                        self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].qualified(plane)),'FlyWithInst_%s_%s_%s_%d'%(s,p,d,w))
-                                    if event.check:
-                                        if stud.onwing!=None:
-                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
-                                        'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
-                                        else:
-                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].check and self.instructors[i].qualified(plane)),
-                                        'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
-                self.m.addConstr(onePerDay <= 1, 'onlyOneEvent_%s_%s' % (s,d))
+                        availstring = 'student_not_available'
+                        self.m.addConstr(quicksum(self.sevents[s,p,d,w,event.id] for p,plane in self.planes.iteritems() for event in stud.events(d,wave) if (stud.qualified(plane) and plane.available(day,wave)))<=0,
+                        'Student_%s_not_available_day_%s_wave_%s'%(s,d,w))
+                    else:
+                        for p in self.planes:
+                            plane = self.planes[p]
+                            if stud.qualified(plane) and plane.available(day,wave):
+                                    for event in stud.events(d,wave):
+                                        e=event.id
+                                        if not event.followsImmediately:
+                                            onePerDay.add(self.sevents[s,p,d,w,e])
+                                        if event.onwing:
+                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= self.ievents[stud.onwing.id,p,d,w],
+                                            'student_%s_requires_onwing_%s_for_event_%s_plane_%s_day_%d_wave_%s'%(s, stud.onwing, event.id, p, d, w))
+                                        elif event.offwing and not event.check:
+                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].qualified(plane)),
+                                            'student_%s_needs_offwing_for_event_%s_plane_%s_day_%s_wave_%d'%(s,event.id,p,d,w))
+                                        elif not event.check:
+                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].qualified(plane)),
+                                            'Fly_With_Any_Inst_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
+                                        elif event.check:
+                                            if stud.onwing!=None:
+                                                self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
+                                            'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
+                                            else:
+                                                self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].check and self.instructors[i].qualified(plane)),
+                                            'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
+                self.m.addConstr(onePerDay <= 1, 'only_One_Event_for_student_%s_day_%s' % (s,d))
 
             #Student crew rest
             oneDay = timedelta(days=1)
