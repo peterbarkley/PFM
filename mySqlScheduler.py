@@ -35,7 +35,7 @@ def main():
     vtna.verbose = config['verbose']
     vtna.timeLimit = config['timelimit']
     vtna.backToBack = config['backtoback']
-    vtna.hardschedule = config['hardschedule']
+    vtna.hardschedule = 1 #config['hardschedule']
     if 'sufficientTime' in config:
         vtna.sufficientTime = config['sufficientTime']
 
@@ -45,6 +45,10 @@ def main():
     if verbose:
         print "Solving model"
     solved = vtna.writeSchedules()
+    if not solved:
+        vtna.hardschedule = 0
+        solved = vtna.writeSchedules()
+
     if solved:
         if verbose:
             print "Writing model to database"

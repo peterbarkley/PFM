@@ -20,6 +20,7 @@ from Sortie import Sortie
 from StudentSortie import StudentSortie
 from Schedule import Schedule
 from Wave import Wave
+from sets import Set
 
 
 class Squadron(object):
@@ -86,6 +87,8 @@ class Squadron(object):
     #Probably want separate functions for each
     def writeSchedules(self):
         #Creates the Decision Variables for the model
+
+        self.m = Model()
         self.createVariables()
 
         self.setStart()
@@ -157,7 +160,7 @@ class Squadron(object):
                             if stud.qualified(plane):
                                 for event in stud.events(d,wave):
                                     #s: student id, plane: plane object, d: date object, w: schedule wave dictionary key, e: event object
-                                    self.sevents[s,p,d,w,event.id]=self.m.addVar(vtype=GRB.BINARY,name='sevent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(stud) + '_' + str(event)) #+1 to obj should be implied
+                                    self.sevents[s,p,d,w,event.id]=self.m.addVar(vtype=GRB.BINARY,name='student_%s_event_%s_plane_%s_day_%s_wave_%s'%(s,event.id,p,d,w)) #+1 to obj should be implied
                                     objective.add(self.schedules[d].priority*wave.priority*stud.getPriority()*self.sevents[s,p,d,w,event.id])
                                     #studexpr.add(dcoeff[d]*wcoeff[w]*sprior[s]*sevents[s,p,d,w,e])
                                     if self.verbose:
@@ -347,8 +350,9 @@ class Squadron(object):
             for s in self.students:
                 stud=self.students[s]
                 #Optional constraint to require students to be scheduled
-                if self.hardschedule and d==1:
-                    self.m.addConstr(quicksum(self.sevents[s,p,d,w,event.id] for p in self.planes for w, wave in sked.waves.iteritems() for event in stud.events(d,wave) if (stud.qualified(self.planes[p]) and self.planes[p].available(day,wave)) ) >= 1,                        'Require_student_%s_to_be_scheduled_for_event_%s'%(s,event.id))
+                if self.hardschedule and d==1 and stud.findPossible(d,True) != Set():
+                    print stud.findPossible(d,True)
+                    self.m.addConstr(quicksum(self.sevents[s,p,d,w,event.id] for p in self.planes for w, wave in sked.waves.iteritems() for event in stud.events(d,wave) if (stud.qualified(self.planes[p]) and self.planes[p].available(day,wave)) ) >= 1,                        'Require_student_%s_to_be_scheduled'%(s))
                 onePerDay = LinExpr()
                 for w in sked.waves:
                     wave = sked.waves[w]
@@ -372,10 +376,10 @@ class Squadron(object):
                                     if event.check:
                                         if stud.onwing!=None:
                                             self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
-                                        'check_%s_%s_%s_%d'%(s,p,d,w))
+                                        'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
                                         else:
                                             self.m.addConstr(self.sevents[s,p,d,w,e] <= available*quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].check and self.instructors[i].qualified(plane)),
-                                        'check_%s_%s_%s_%d'%(s,p,d,w))
+                                        'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
                 self.m.addConstr(onePerDay <= 1, 'onlyOneEvent_%s_%s' % (s,d))
 
             #Student crew rest
