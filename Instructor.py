@@ -29,8 +29,8 @@ class Instructor(Flyer):
 
     def getPreference(self,d,w):
         pri = self.priority
-        if not self.paid:
-            pri = pri/10
+        #if not self.paid:
+        #    pri = pri/10
         if (d,w) in self.preferences:
             return pri*self.preferences[(d,w)]
         else:

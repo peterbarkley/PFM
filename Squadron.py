@@ -45,6 +45,7 @@ class Squadron(object):
         self.maxPlanesPerWave = 16
         self.sufficientTime = 0
         self.hardschedule = 0
+        self.militaryPreference = 0
 
     #Returns the waves that a plane can fly on a given day
     def waves(self,day,wave,plane):
@@ -168,8 +169,11 @@ class Squadron(object):
                         for i in self.instructors:
                             inst = self.instructors[i]
                             if inst.qualified(plane):
-                                self.ievents[i,p,d,w]=self.m.addVar(vtype=GRB.BINARY,name='ievent_'+ str(d) + '_' + str(w) +'_'+ str(plane) +'_'+ str(inst))
-                                objective.add((1+wave.planeHours()*(6-plane.priority)/10)*self.schedules[d].priority*inst.getPreference(d,w)*self.ievents[i,p,d,w])
+                                self.ievents[i,p,d,w]=self.m.addVar(vtype=GRB.BINARY,name='ievent_instructor_%s_plane_%s_on_day_%s_wave_%s'%(i,p,d,w))
+                                prefCoefficient = inst.getPreference(d,w)
+                                if self.militaryPreference and inst.paid:
+                                    prefCoefficient = 0.1*prefCoefficient
+                                objective.add((1+wave.planeHours()*(6-plane.priority)/40)*self.schedules[d].priority*prefCoefficient*self.ievents[i,p,d,w])
                                 if self.verbose:
                                     print 'creating variable for instructor %s, plane %s, day %s, wave %s, multiplier %s'%(i,p,d,w,self.schedules[d].priority*wave.priority*inst.getPreference(d,w))
 
@@ -214,13 +218,18 @@ class Squadron(object):
                                         plane_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
                                         daily_hours.add(event.flightHours * self.sevents[s,p,d,w,event.id])
                     #Plane cannot fly while in maintenance
-                    self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
+                    self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d]),
+                    'no_flight_hours_while_in_maintenance_%s_%s'%(p,d)) #Constraint P1
                     if d>1:
-                        self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-1]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
+                        self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-1]),
+                        'no_flight_hours_while_in_maintenance_%s_%s'%(p,d)) #Constraint P1
                     if d>2:
-                        self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-2]),'no_flight_hours_while_in_maintenance_%s_%s'%(p,d))
-                        self.m.addConstr(1-self.maintenance[p,d-2]>=self.maintenance[p,d-1]+self.maintenance[p,d])
-                    self.m.addConstr(plane_hours<=plane.hours+0.5+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),'planeHours_%s_%s'%(p,d))
+                        self.m.addConstr(daily_hours<=100*(1-self.maintenance[p,d-2]),
+                        'no_flight_hours_while_in_maintenance_%s_%s'%(p,d)) #Constraint P1
+                        self.m.addConstr(1-self.maintenance[p,d-2]>=self.maintenance[p,d-1]+self.maintenance[p,d],
+                        'plane_%s_cannot_go_into_maintenace_for_two_days_if_it_goes_in_on_day_%s'%(p,d)) #Constraint P2
+                    self.m.addConstr(plane_hours<=plane.hours+0.5+100*quicksum(self.maintenance[p,i] for i in self.schedules if i<d),
+                    'on_day_%s_do_not_schedule_plane_%s_in_excess_of_100_total_hrs_per_inspection'%(d,p)) #Constraint P3
         else:
             #Don't exceed remaining plane hours
             for p, plane in self.planes.iteritems():
@@ -230,7 +239,7 @@ class Squadron(object):
                 for stud in self.students.itervalues()
                 for event in stud.events(sked.flyDay,wave)
                 if plane.available(sked.date,wave)
-                and stud.qualified(plane)) <= plane.hours,'planeHours_%s'%(p))
+                and stud.qualified(plane)) <= plane.hours,'planeHours_%s'%(p)) #Constraint P3'
 
         for d in self.schedules:
             sked = self.schedules[d]
@@ -245,18 +254,21 @@ class Squadron(object):
                         if inst.qualified(plane) and plane.available(day,wave1) and plane.available(day,wave2):
                             expr.add(self.ievents[i,p,d,w[0]])
                             expr.add(self.ievents[i,p,d,w[1]])
-                    self.m.addConstr(expr <=1, 'Plane_No_Exclusive_Wave_%s_%s_%d_%d' % (p,d,w[0],w[1]))
+                    self.m.addConstr(expr <=1,
+                    'Do_not_schedule_plane_%s_on_day_%s_for_wave_%d_and_%d_because_they_overlap' % (p,d,w[0],w[1])) #Constraint P4
 
             for w in sked.waves:
                 wave = sked.waves[w]
                 #This restricts the number of planes in any particular wave if desired
                 if sked.maxPlanesPerWave < 16:
-                    self.m.addConstr(quicksum(self.ievents[i,p,d,w] for i in self.instructors for p in self.planes if (self.planes[p].available(day,wave) and self.instructors[i].qualified(self.planes[p]) ) ) <= sked.maxPlanesPerWave,'Max_planes_per_wave_%s_%s' % (d,w))
+                    self.m.addConstr(quicksum(self.ievents[i,p,d,w] for i in self.instructors for p in self.planes if (self.planes[p].available(day,wave) and self.instructors[i].qualified(self.planes[p]) ) ) <= sked.maxPlanesPerWave,
+                    'Max_planes_per_wave_%s_%s' % (d,w))
                 #This requires sufficient time for the flights to be completed
                 if self.sufficientTime:
                     for p, plane in self.planes.iteritems():
                         if plane.available(day,wave):
-                            self.m.addConstr(quicksum(event.flightHours*self.sevents[s,p,d,w,event.id] for s, stud in self.students.iteritems() for event in stud.events(d,wave) if stud.qualified(plane)) <= wave.planeHours(),'Events_fit_in_wave_%s_day_%s_plane_%s' % (w,d,p) )
+                            self.m.addConstr(quicksum(event.flightHours*self.sevents[s,p,d,w,event.id] for s, stud in self.students.iteritems() for event in stud.events(d,wave) if stud.qualified(plane)) <= wave.planeHours(),
+                            'Require_sufficient_time_in_wave_%s_day_%s_plane_%s_for_scheduled_events' % (w,d,p) ) #Constraint E1
                             if self.verbose:
                                 print 'Events_fit_in_%s_hours for wave_%s_day_%s_plane_%s' % (wave.planeHours(),w,d,p)
 
@@ -271,7 +283,8 @@ class Squadron(object):
                         plane = self.planes[p]
                         if plane.available(day,wave) and inst.qualified(plane):
                             expr.add(self.ievents[i,p,d,w])
-                    self.m.addConstr(expr<=limit,'onePlanePerWave_%s_%s_%d'%(i,d,w))
+                    self.m.addConstr(expr<=limit,
+                    'instructor_%s_cannot_be_in_more_than_one_plane_on_day_%s_during_wave_%d'%(i,d,w)) #Constraint I1
 
                 for p in self.planes:
                     plane = self.planes[p]
@@ -285,7 +298,8 @@ class Squadron(object):
                             if inst.qualified(plane):
                                     expr.add(self.ievents[i,p,d,w])
                                     maxWeightExpr.add(inst.weight*self.ievents[i,p,d,w])
-                        self.m.addConstr(expr <= 1, 'oneInstperPlane_%s_%s_%d' % (p,d,w))
+                        self.m.addConstr(expr <= 1,
+                        'Plane_%s_can_only_hold_one_instructor_on_day_%s_during_wave_%d' % (p,d,w)) #Constraint P5
 
                         #This is the student pairing loop
                         maxStudExpr = LinExpr()
@@ -298,7 +312,7 @@ class Squadron(object):
                                     if stud.partner.nextEvent == stud.nextEvent:
                                         for event in stud.events(d,wave):
                                             self.m.addConstr(self.sevents[s,p,d,w,event.id]<=self.sevents[stud.partner.id,p,d,w,event.id],
-                                                        'OnWingsTogether_%s_%s_%s_%s_%d_%s'% (s,stud.partner.id,p,d,w,event))
+                                            'Students_%s_&_%s_are_partners_&_active_&_on_event_%s_if_one_flies_on_plane_%s_day_%d_wave_%s_the_other_must_as_well'% (s,stud.partner.id,event,p,d,w)) #Constraint E2
                                 #Max students constraint
                                 for event in stud.events(d,wave):
                                     if self.verbose:
@@ -307,10 +321,12 @@ class Squadron(object):
                                     maxStudExpr.add(self.sevents[s,p,d,w,event.id])
                                     if event.flightHours > 0.0:
                                         maxWeightExpr.add(stud.weight/wave.studentMultiple*self.sevents[s,p,d,w,event.id])
-                        self.m.addConstr(maxStudExpr <= wave.studentMultiple*maxStuds,'MaxStuds_%s_%s_%d' % (p,d,w))
+                        self.m.addConstr(maxStudExpr <= wave.studentMultiple*maxStuds,
+                        'MaxStuds_%s_%s_%d' % (p,d,w)) #Constraint E1'
                         if self.verbose:
                             print 'Max studs is %d'%(maxStuds)
-                        self.m.addConstr(maxWeightExpr <= plane.maxWeight,'Limt max weight for plane %s on day %d during wave %d' % (p,d,w))
+                        self.m.addConstr(maxWeightExpr <= plane.maxWeight,
+                        'Limit_max_weight_for_plane_%s_on_day_%d_during_wave_%d' % (p,d,w)) #Constraint P6
                         #print 'Limit max weight for plane %s on day %d during wave %d' % (p,d,w)
 
             for i in self.instructors:
@@ -330,7 +346,8 @@ class Squadron(object):
                                 expr.add(self.ievents[i,p,d,w[0]])
                             if plane.available(day,wave2):
                                 expr.add(self.ievents[i,p,d,w[1]])
-                    self.m.addConstr(expr <=1, 'Inst_No_Exclusive_Wave_%s_%s_%d_%d' % (i,d,w[0],w[1]))
+                    self.m.addConstr(expr <=1,
+                    'Do_not_schedule_instructor_%s_on_day_%s_for_wave_%d_and_%d_because_they_overlap' % (i,d,w[0],w[1])) #Constraint I2
                 #Don't fly an instructor more than their max events
                 maxEventExpr = LinExpr()
                 maxHoursExpr = LinExpr()
@@ -341,8 +358,8 @@ class Squadron(object):
                         if inst.qualified(plane) and plane.available(day,wave):
                             maxEventExpr.add(self.ievents[i,p,d,w])
                             maxHoursExpr.add(self.ievents[i,p,d,w]*(wave.planeHours()-0.2))
-                #self.m.addConstr(maxEventExpr<= inst.maxEvents,'InstMaxEvents_%s_%s'%(i,d))
-                self.m.addConstr(maxHoursExpr<= 8.0,'InstMaxHours_%s_%s'%(i,d))
+                self.m.addConstr(maxEventExpr<= inst.maxEvents,'No_more_than_%d_events_for_instructor_%s_on_day_%s'%(inst.maxEvents,i,d)) #Constraint I3
+                self.m.addConstr(maxHoursExpr<= 8.0,'No_more_than_8_flight_hours_for_instructor_%s_on_day_%s'%(i,d)) #Constraint I4
 
             #One event per day for students unless followsImmediately
             #Set onwing,offwing,check flight instructor requirements
@@ -351,7 +368,8 @@ class Squadron(object):
                 stud=self.students[s]
                 #Optional constraint to require students to be scheduled
                 if self.hardschedule and d==1 and stud.findPossible(d,True) != Set():
-                    self.m.addConstr(quicksum(self.sevents[s,p,d,w,event.id] for p in self.planes for w, wave in sked.waves.iteritems() for event in stud.events(d,wave) if (stud.qualified(self.planes[p]) and self.planes[p].available(day,wave)) ) >= 1,                        'Require_student_%s_to_be_scheduled'%(s))
+                    self.m.addConstr(quicksum(self.sevents[s,p,d,w,event.id] for p in self.planes for w, wave in sked.waves.iteritems() for event in stud.events(d,wave) if (stud.qualified(self.planes[p]) and self.planes[p].available(day,wave)) ) >= 1,
+                    'Require_student_%s_to_be_scheduled'%(s)) #Constraint E3
                 onePerDay = LinExpr()
                 for w in sked.waves:
                     wave = sked.waves[w]
@@ -361,32 +379,33 @@ class Squadron(object):
                         available = 0
                         availstring = 'student_not_available'
                         self.m.addConstr(quicksum(self.sevents[s,p,d,w,event.id] for p,plane in self.planes.iteritems() for event in stud.events(d,wave) if (stud.qualified(plane) and plane.available(day,wave)))<=0,
-                        'Student_%s_not_available_day_%s_wave_%s'%(s,d,w))
+                        'Student_%s_not_available_day_%s_wave_%s'%(s,d,w)) #Constraint S1
                     else:
                         for p in self.planes:
                             plane = self.planes[p]
                             if stud.qualified(plane) and plane.available(day,wave):
-                                    for event in stud.events(d,wave):
-                                        e=event.id
-                                        if not event.followsImmediately:
-                                            onePerDay.add(self.sevents[s,p,d,w,e])
-                                        if event.onwing:
-                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= self.ievents[stud.onwing.id,p,d,w],
-                                            'student_%s_requires_onwing_%s_for_event_%s_plane_%s_day_%d_wave_%s'%(s, stud.onwing, event.id, p, d, w))
-                                        elif event.offwing and not event.check:
-                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].qualified(plane)),
-                                            'student_%s_needs_offwing_for_event_%s_plane_%s_day_%s_wave_%d'%(s,event.id,p,d,w))
-                                        elif not event.check:
-                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].qualified(plane)),
-                                            'Fly_With_Any_Inst_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
-                                        elif event.check:
-                                            if stud.onwing!=None:
-                                                self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
-                                            'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
-                                            else:
-                                                self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].check and self.instructors[i].qualified(plane)),
-                                            'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w))
-                self.m.addConstr(onePerDay <= 1, 'only_One_Event_for_student_%s_day_%s' % (s,d))
+                                #Should probably just calculate the eligible instructors in student or event object. Problem is that it requires both.
+                                for event in stud.events(d,wave):
+                                    e=event.id
+                                    if not event.followsImmediately:
+                                        onePerDay.add(self.sevents[s,p,d,w,e])
+                                    if event.onwing:
+                                        self.m.addConstr(self.sevents[s,p,d,w,e] <= self.ievents[stud.onwing.id,p,d,w],
+                                        'student_%s_requires_onwing_%s_for_event_%s_plane_%s_day_%d_wave_%s'%(s, stud.onwing, event.id, p, d, w)) #Constraint E4
+                                    elif event.offwing and not event.check:
+                                        self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].qualified(plane)),
+                                        'student_%s_needs_offwing_for_event_%s_plane_%s_day_%s_wave_%d'%(s,event.id,p,d,w)) #Constraint E5
+                                    elif not event.check:
+                                        self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].qualified(plane)),
+                                        'Fly_With_Any_Inst_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E7
+                                    elif event.check:
+                                        if stud.onwing!=None:
+                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
+                                        'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E6
+                                        else:
+                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].check and self.instructors[i].qualified(plane)),
+                                        'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E6
+                self.m.addConstr(onePerDay <= 1, 'only_One_Event_for_student_%s_day_%s' % (s,d)) #Constraint E8
 
             #Student crew rest
             oneDay = timedelta(days=1)
@@ -410,7 +429,7 @@ class Squadron(object):
                                             if plane.available(subsequent,wave2):
                                                 for event in stud.events(subsequent,wave2):
                                                     crewRestExpr.add(self.sevents[s,p,subsequent,wave2.id,event.id])
-                                self.m.addConstr(crewRestExpr<=1,'CrewRest_%s_%s_%d_to_%s'%(s,d,w1,subsequent))
+                                self.m.addConstr(crewRestExpr<=1,'CrewRest_student_%s_day_%s_wave_%d'%(s,d,w1)) #Constraint S2
 
         eventsOnce = {}
         for d in self.schedules:
@@ -428,15 +447,13 @@ class Squadron(object):
                             if stud.qualified(plane) and plane.available(day,wave):
                                 eventsOnce[(s,event.id)].add(self.sevents[s,p,d,w,event.id])
         for k in eventsOnce:
-            self.m.addConstr(eventsOnce[k]<=1,'eventsScheduledOnce_%s_%d'%(k[0],k[1]))
+            self.m.addConstr(eventsOnce[k]<=1,'Schedule_event_%d_once_for_student_%s'%(k[1],k[0])) #Constraint E9
 
         precedingEventsExpr = {}
         for d in self.schedules:
             sked = self.schedules[d]
             day = sked.date
             if d == 1:
-                if self.verbose:
-                    print 'Entered loop'
                 for s,stud in self.students.iteritems():
                     if self.verbose:
                         print 'Student %d'%(s)
@@ -460,7 +477,7 @@ class Squadron(object):
                                                 if stud.qualified(plane) and plane.available(d,sked.waves[precedingw]):
                                                     SameDayWavesExpr.add(self.sevents[s,p,d,precedingw,event.id])
                                         self.m.addConstr(SameDayWavesExpr>=quicksum(self.sevents[s,p,d,w,f.id] for p in self.planes if stud.qualified(self.planes[p]) and self.planes[p].available(d,wave)),
-                                        'Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(event,f,d,w,s))
+                                        'Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(event,f,d,w,s)) #Constraint E10
                                         if self.verbose:
                                             print 'Same Day Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(event,f,d,w,s)
 
@@ -502,11 +519,12 @@ class Squadron(object):
                                             if stud.qualified(plane) and plane.available(nextDay,self.schedules[nextDay].waves[precedingw]):
                                                 addedWavesExpr.add(self.sevents[s,p,nextDay,precedingw,event.id])
                                     self.m.addConstr(precedingEventsExpr[(s,nextDay,f.id)]+addedWavesExpr>=quicksum(self.sevents[s,p,nextDay,w,f.id] for p in self.planes if stud.qualified(self.planes[p]) and plane.available(nextDay,wave)),
-                                    'Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(event,f,nextDay,w,s))
+                                    'Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(event,f,nextDay,w,s)) #Constraint E10'
                                     #print '%s immediately follows %s'%(f,event)
                             if not f.followsImmediately:
                                 #print '%s follows %s'%(f,event)
-                                self.m.addConstr(precedingEventsExpr[(s,nextDay,f.id)]>=followingEventExpr,'Schedule %s before scheduling %s on day %d for student %s'%(event,f,nextDay,s))
+                                self.m.addConstr(precedingEventsExpr[(s,nextDay,f.id)]>=followingEventExpr,
+                                'Schedule %s before scheduling %s on day %d for student %s'%(event,f,nextDay,s)) #Constraint E11
                                 #print 'Schedule %s before scheduling %s on day %d for student %s'%(event,f,nextDay,s)
 
             for s in self.students:
@@ -525,7 +543,7 @@ class Squadron(object):
                                             if stud.qualified(plane) and plane.available(day,sked.waves[precedingw]):
                                                 addedWavesExpr.add(self.sevents[s,p,d,precedingw,precedingEvent.id])
                                 self.m.addConstr(addedWavesExpr>=quicksum(self.sevents[s,p,d,w,f.id] for p in self.planes if stud.qualified(self.planes[p]) and self.planes[p].available(day,wave)),
-                                'Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(precedingEvent,f,d,w,s))
+                                'Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(precedingEvent,f,d,w,s)) #Constraint E10'
                                 #print '%s immediately follows %s on day %d'%(f,precedingEvent,d)
 
         self.m.update()

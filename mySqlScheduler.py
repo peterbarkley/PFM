@@ -38,6 +38,8 @@ def main():
     vtna.hardschedule = 1 #config['hardschedule']
     if 'sufficientTime' in config:
         vtna.sufficientTime = config['sufficientTime']
+    if 'militaryPreference' in config:
+        vtna.sufficientTime = config['militaryPreference']
 
     if verbose:
         print "Loading model from database"
