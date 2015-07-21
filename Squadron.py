@@ -348,18 +348,19 @@ class Squadron(object):
                                 expr.add(self.ievents[i,p,d,w[1]])
                     self.m.addConstr(expr <=1,
                     'Do_not_schedule_instructor_%s_on_day_%s_for_wave_%d_and_%d_because_they_overlap' % (i,d,w[0],w[1])) #Constraint I2
-                #Don't fly an instructor more than their max events
-                maxEventExpr = LinExpr()
-                maxHoursExpr = LinExpr()
-                for w in sked.waves:
-                    wave = sked.waves[w]
-                    for p in self.planes:
-                        plane = self.planes[p]
-                        if inst.qualified(plane) and plane.available(day,wave):
-                            maxEventExpr.add(self.ievents[i,p,d,w])
-                            maxHoursExpr.add(self.ievents[i,p,d,w]*(wave.planeHours()-0.2))
-                self.m.addConstr(maxEventExpr<= inst.maxEvents,'No_more_than_%d_events_for_instructor_%s_on_day_%s'%(inst.maxEvents,i,d)) #Constraint I3
-                self.m.addConstr(maxHoursExpr<= 8.0,'No_more_than_8_flight_hours_for_instructor_%s_on_day_%s'%(i,d)) #Constraint I4
+                if not self.backToBack:
+                    #Don't fly an instructor more than their max events
+                    maxEventExpr = LinExpr()
+                    maxHoursExpr = LinExpr()
+                    for w in sked.waves:
+                        wave = sked.waves[w]
+                        for p in self.planes:
+                            plane = self.planes[p]
+                            if inst.qualified(plane) and plane.available(day,wave):
+                                maxEventExpr.add(self.ievents[i,p,d,w])
+                                maxHoursExpr.add(self.ievents[i,p,d,w]*(wave.planeHours()-0.2))
+                    self.m.addConstr(maxEventExpr<= inst.maxEvents,'No_more_than_%d_events_for_instructor_%s_on_day_%s'%(inst.maxEvents,i,d)) #Constraint I3
+                    self.m.addConstr(maxHoursExpr<= 8.0,'No_more_than_8_flight_hours_for_instructor_%s_on_day_%s'%(i,d)) #Constraint I4
 
             #One event per day for students unless followsImmediately
             #Set onwing,offwing,check flight instructor requirements
