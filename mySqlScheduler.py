@@ -195,7 +195,7 @@ def load(vtna,config):
             #Add plane types
 
         #Add plane availability
-        cur.execute("SELECT * FROM plane_unavail WHERE (end >= %s and start <= %s)",(vtna.schedules[1].date.strftime('%Y-%m-%d'),vtna.schedules[vtna.totalFlightDays].date.strftime('%Y-%m-%d')))
+        cur.execute("SELECT * FROM plane_unavail WHERE (end >= %s and start <= %s)",(vtna.schedules[1].date.strftime('%Y-%m-%d'),(vtna.schedules[vtna.totalFlightDays].date+timedelta(days=1)).strftime('%Y-%m-%d')))
         rows = cur.fetchall()
         i=1
         for row in rows:
