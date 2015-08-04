@@ -36,6 +36,8 @@ def main():
     vtna.timeLimit = config['timelimit']
     vtna.backToBack = config['backtoback']
     vtna.hardschedule = 1 #config['hardschedule']
+    if 'hardschedule' in config:
+        vtna.hardschedule = config['hardschedule']
     if 'sufficientTime' in config:
         vtna.sufficientTime = config['sufficientTime']
     if 'militaryPreference' in config:
