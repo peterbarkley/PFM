@@ -400,12 +400,24 @@ class Squadron(object):
                                         self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].qualified(plane)),
                                         'Fly_With_Any_Inst_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E7
                                     elif event.check:
-                                        if stud.onwing!=None:
-                                            self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
-                                        'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E6
+                                        if not self.militaryPreference:
+                                            if stud.onwing!=None:
+                                                self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
+                                            'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E6
+                                            else:
+                                                self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].check and self.instructors[i].qualified(plane)),
+                                            'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E6
+                                        elif stud.onwing!=None:
+                                            if stud.onwing.paid:
+                                                self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if (i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane) and (not self.instructors[i].paid))),
+                                            'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E6
+                                            else:
+                                                self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if i != stud.onwing.id and self.instructors[i].check and self.instructors[i].qualified(plane)),
+                                            'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E6
                                         else:
                                             self.m.addConstr(self.sevents[s,p,d,w,e] <= quicksum(self.ievents[i,p,d,w] for i in self.instructors if self.instructors[i].check and self.instructors[i].qualified(plane)),
-                                        'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E6
+                                            'checkride_student_%s_plane_%s_day_%s_wave_%d'%(s,p,d,w)) #Constraint E6
+
                 self.m.addConstr(onePerDay <= 1, 'only_One_Event_for_student_%s_day_%s' % (s,d)) #Constraint E8
 
             #Student crew rest
