@@ -277,14 +277,15 @@ class Squadron(object):
                     inst = self.instructors[i]
                     expr = LinExpr()
                     limit=1
+                    text = 'instructor_%s_cannot_be_in_more_than_one_plane_on_day_%s_during_wave_%d'%(i,d,w)
                     if not inst.available(day,wave):
                         limit = 0
+                        text = 'instructor_%s_not_available_on_day_%s_during_wave_%d'%(i,d,w)
                     for p in self.planes:
                         plane = self.planes[p]
                         if plane.available(day,wave) and inst.qualified(plane):
                             expr.add(self.ievents[i,p,d,w])
-                    self.m.addConstr(expr<=limit,
-                    'instructor_%s_cannot_be_in_more_than_one_plane_on_day_%s_during_wave_%d'%(i,d,w)) #Constraint I1
+                    self.m.addConstr(expr<=limit, text) #Constraint I1
 
                 for p in self.planes:
                     plane = self.planes[p]
@@ -309,10 +310,12 @@ class Squadron(object):
                             if stud.qualified(plane):
                                 #This is the student pairing loop
                                 if stud.partner!=None:
-                                    if stud.partner.nextEvent == stud.nextEvent:
+                                    if stud.partner.getNextEvent() == stud.getNextEvent():
+                                        if verbose:
+                                            print stud.id, stud.nextEvent, stud.partner.id, stud.partner.nextEvent
                                         for event in stud.events(d,wave):
-                                            self.m.addConstr(self.sevents[s,p,d,w,event.id]<=self.sevents[stud.partner.id,p,d,w,event.id],
-                                            'Students_%s_&_%s_are_partners_&_active_&_on_event_%s_if_one_flies_on_plane_%s_day_%d_wave_%s_the_other_must_as_well'% (s,stud.partner.id,event,p,d,w)) #Constraint E2
+                                            self.m.addConstr(self.sevents[s,p,d,wave.id,event.id]<=self.sevents[stud.partner.id,p,d,wave.id,event.id],
+                                            'Students_%s_&_%s_are_partners_&_active_&_on_event_%s_if_one_flies_on_plane_%s_day_%d_wave_%s_the_other_must_as_well'% (s,stud.partner.id,event,p,d,wave.id)) #Constraint E2
                                 #Max students constraint
                                 for event in stud.events(d,wave):
                                     if self.verbose:

@@ -97,7 +97,7 @@ class Student(Flyer):
         return self.priority
 
     def getNextEvent(self):
-        if self.nextEvent == None:
+        if self.nextEvent == None and self.findPossible(1,True):
             self.nextEvent = min(self.findPossible(1,True))
         return self.nextEvent
 

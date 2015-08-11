@@ -378,15 +378,12 @@ def load(vtna,config):
 
         """for s in vtna.students:
             stud = vtna.students[s]
-            print stud.getNextEvent()
-            print stud.getPriority()
-            i=1
+            print 'Student: ', stud.id
+            if stud.findPossible(1,True):
+                print 'Next event: ', stud.getNextEvent()
             for event in stud.findPossible(1,True):
                 if verbose:
-                    print 'student ', s, 'possible event ', event.id
-                if i==1:
-                    stud.nextEvent = event
-                i=i+1"""
+                    print 'student ', s, 'possible event ', event.id"""
 
 
         #Loop over instructor preferences
