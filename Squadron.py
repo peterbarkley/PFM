@@ -311,7 +311,7 @@ class Squadron(object):
                                 #This is the student pairing loop
                                 if stud.partner!=None:
                                     if stud.partner.getNextEvent() == stud.getNextEvent():
-                                        if verbose:
+                                        if self.verbose:
                                             print stud.id, stud.nextEvent, stud.partner.id, stud.partner.nextEvent
                                         for event in stud.events(d,wave):
                                             self.m.addConstr(self.sevents[s,p,d,wave.id,event.id]<=self.sevents[stud.partner.id,p,d,wave.id,event.id],
