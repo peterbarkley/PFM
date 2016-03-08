@@ -316,8 +316,6 @@ def load(vtna, config):
                 s.land = row["scheduled_land"]
                 if row["wave_ID"] in vtna.today.waves:
                     s.wave = vtna.today.waves[int(row["wave_ID"])] #Wave ojbect
-                """else:
-                    s.wave = vtna.today.waves[5] #This is a bad hack. Ought to use a function to determine nearest wave in today's set of waves"""
                 vtna.today.sorties[id]=s
 
         #Create sorties and studentSorties from the entries in those table corresponding to the most recent published sked
