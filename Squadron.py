@@ -221,14 +221,6 @@ class Squadron(object):
         else:
             #Don't exceed remaining plane hours
             for p, plane in self.planes.iteritems():
-                """for sked in self.schedules.itervalues():
-                    for wave in self.schedules[sked.flyDay].waves.itervalues():
-                        for stud in self.students.itervalues():
-                            for event in stud.events(sked.flyDay,wave):
-                                print event.__dict__
-                                if plane.available(sked.day,wave) and stud.qualified(plane):
-                                    pass # print stud.id, p, sked.flyDay, wave.id, event.id, plane.hours"""
-
                 self.m.addConstr(quicksum(self.sevents[stud.id,p,sked.flyDay,wave.id,event.id]*self.syllabus[event.id].flightHours
                 for sked in self.schedules.itervalues()
                 for wave in self.schedules[sked.flyDay].waves.itervalues()

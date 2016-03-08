@@ -19,7 +19,7 @@ class Flyer(Resource):
         self.weight = 180
         self.priority = 1
         self.resourceType = "Flyer"
-        self.crewRestHours = 10
+        self.crewRestHours = 8
         self.crewDayHours = 12
         super(Flyer, self).__init__(*initial_data, **kwargs)
         self.crewRest = timedelta(hours = self.crewRestHours)

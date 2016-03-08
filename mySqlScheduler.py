@@ -294,6 +294,7 @@ def load(vtna, config):
         row = cur.fetchone()
         vtna.today.id = int(row["schedule_ID"])
         vtna.today.day = row["day"]
+        midnight = datetime.combine(vtna.today.day, time(0))
         query = "SELECT * FROM schedule_wave WHERE schedule_ID = %d" % vtna.today.id
         cur.execute(query)
         rows = cur.fetchall()
@@ -315,8 +316,8 @@ def load(vtna, config):
                 s.land = row["scheduled_land"]
                 if row["wave_ID"] in vtna.today.waves:
                     s.wave = vtna.today.waves[int(row["wave_ID"])] #Wave ojbect
-                else:
-                    s.wave = vtna.today.waves[5] #This is a bad hack. Ought to use a function to determine nearest wave in today's set of waves
+                """else:
+                    s.wave = vtna.today.waves[5] #This is a bad hack. Ought to use a function to determine nearest wave in today's set of waves"""
                 vtna.today.sorties[id]=s
 
         #Create sorties and studentSorties from the entries in those table corresponding to the most recent published sked
@@ -342,10 +343,20 @@ def load(vtna, config):
                         sortie.studentSorties.append(ss)
                         if vtna.today.day == (vtna.schedules[1].day-timedelta(days=1)):
                             #print "happy dance", stud.id, sortie.wave.id
+                            takeoff = row["actual_takeoff"]
+                            if not takeoff:
+                                takeoff = midnight + sortie.takeoff
+                            land = row["actual_land"]
+                            if not land:
+                                land = midnight + sortie.land
                             sniv = Sniv()
-                            sniv.begin = sortie.wave.times["Flyer"].begin
-                            sniv.end = sortie.wave.times["Flyer"].end + stud.crewRest
+                            sniv.begin = takeoff
+                            sniv.end = land + timedelta(hours=event.debriefHours) + stud.crewRest
                             stud.snivs[0]=sniv
+                            instructor_sniv = Sniv()
+                            instructor_sniv.begin = takeoff
+                            instructor_sniv.end = land + timedelta(hours=event.debriefHours) + sortie.instructor.crewRest
+                            sortie.instructor.snivs['crewrest' + str(row['student_sortie_ID'])] = instructor_sniv
             p = row["plane_tail_number"]
             if row["status"] == 'scheduled' and p in vtna.planes and row["sked_flight_hours"] != None:
                 if (vtna.planes[p].hours - float(row["sked_flight_hours"])) >= 0:
