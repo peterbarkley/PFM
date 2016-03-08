@@ -14,7 +14,9 @@ from gurobipy import *
 from Sniv import Sniv
 from Flyer import Flyer
 from Instructor import Instructor
-from Student import Student
+import Student
+reload(Student)
+from Odd import Student
 from Event import Event
 from Sortie import Sortie
 from StudentSortie import StudentSortie
@@ -31,7 +33,7 @@ class Squadron(object):
         self.instructors = {}  #Dictionary of instructor objects like {9: Instructor(9), ... }
         self.students = {}  #Dictionary of student objects like {19: Student(19), ... }
         self.syllabus = {} #Dictionary of syllabus events like {-3: Event(-3), -2: Event(-2), ... }
-        self.today = Schedule(date.today()) #Current schedule object
+        self.today = Schedule() #Current schedule object
         self.schedules = {} #Dictionary of schedules to be written like {1:Schedule(date(2015,3,27)),2:Schedule(date...}
         self.sevents = {} #Dictionary containing decision variables for all possible student sorties within date range
         self.ievents = {} #Dictionary containing decision variables for all possible instructor sorties within date range
@@ -47,30 +49,16 @@ class Squadron(object):
         self.hardschedule = 0
         self.militaryPreference = 0
 
-    #Returns the waves that a plane can fly on a given day
-    def waves(self,day,wave,plane):
-        #self.schedules[day]
-        #How do I store this besides snivs?
-        #It should have the flexibility to assign planes to specific waves if I break the staggers into specific waves
-        #At the very least, it should query snivs for the planes on that day during that wave
-        waves = self.schedules[day].waves #Should start as blank {}
-        """for w in self.schedules[day].waves:
-            if !self.planes[plane].snivved(w):
-                waves.append(w)
-
-        """
-        return waves #This needs work
-
     #Generates Waves in subsequent days that would be excluded by the crew rest requirements for a specific resource type
     #Returns a dictionary indexed by wave giving a list of the waves in the subsequent day that would be excluded b/c of crew rest for the resource type
     def generateCrewrestExclusion(self,day1,day2,resourceType):
         w={}
-        if resourceType=="Student":
-            s=Student("Sample",self)
-        elif resourceType=="Instructor":
-            s=Instructor("Sample")
+        if resourceType == "Student":
+            s=Student(id="Sample", squadron=self)
+        elif resourceType == "Instructor":
+            s=Instructor(id="Sample")
         else:
-            s=Flyer("Sample")
+            s=Flyer(id="Sample")
         for w1 in self.schedules[day1].waves:
             w[w1]=[]
             wave1=self.schedules[day1].waves[w1]
@@ -80,7 +68,7 @@ class Squadron(object):
             s.snivs[0]=rest
             for w2 in self.schedules[day2].waves:
                 wave2=self.schedules[day2].waves[w2]
-                if not s.available(self.schedules[day2].date,wave2):
+                if not s.available(self.schedules[day2].day,wave2):
                     w[w1].append(w2)
         return w
 
@@ -148,7 +136,7 @@ class Squadron(object):
         objective = LinExpr()
         for d, sked in self.schedules.iteritems():
             #sked = self.schedules[d]
-            day = sked.date
+            day = sked.day
             for p in self.planes:
                 plane = self.planes[p]
                 if self.calculateMaintenance:
@@ -187,7 +175,7 @@ class Squadron(object):
         """for sortie_id in self.today.sorties:
             sortie = self.today.sorties[sortie_id]
             d=1
-            day = self.schedules[d].date
+            day = self.schedules[d].day
             if sortie.studentSorties!=[] and self.schedules[d].waveNumber == self.today.waveNumber and sortie.plane != None:
                 if sortie.plane.available(day,sortie.wave) and sortie.instructor.available(day,sortie.wave) and sortie.instructor.qualified(sortie.plane):
                         for ss in sortie.studentSorties:
@@ -211,7 +199,7 @@ class Squadron(object):
                 for d, sked in self.schedules.iteritems():
                     daily_hours = LinExpr()
                     for w, wave in sked.waves.iteritems():
-                        if plane.available(sked.date,wave):
+                        if plane.available(sked.day,wave):
                             for s, stud in self.students.iteritems():
                                 if stud.qualified(plane):
                                     for event in stud.events(d,wave):
@@ -233,17 +221,25 @@ class Squadron(object):
         else:
             #Don't exceed remaining plane hours
             for p, plane in self.planes.iteritems():
+                """for sked in self.schedules.itervalues():
+                    for wave in self.schedules[sked.flyDay].waves.itervalues():
+                        for stud in self.students.itervalues():
+                            for event in stud.events(sked.flyDay,wave):
+                                print event.__dict__
+                                if plane.available(sked.day,wave) and stud.qualified(plane):
+                                    pass # print stud.id, p, sked.flyDay, wave.id, event.id, plane.hours"""
+
                 self.m.addConstr(quicksum(self.sevents[stud.id,p,sked.flyDay,wave.id,event.id]*self.syllabus[event.id].flightHours
                 for sked in self.schedules.itervalues()
                 for wave in self.schedules[sked.flyDay].waves.itervalues()
                 for stud in self.students.itervalues()
                 for event in stud.events(sked.flyDay,wave)
-                if plane.available(sked.date,wave)
+                if plane.available(sked.day,wave)
                 and stud.qualified(plane)) <= plane.hours,'planeHours_%s'%(p)) #Constraint P3'
 
         for d in self.schedules:
             sked = self.schedules[d]
-            day = sked.date
+            day = sked.day
             #Exclusive wave loop for planes
             for p, plane in self.planes.iteritems():
                 for w in sked.exclusiveWaves["Plane"]:
@@ -362,8 +358,8 @@ class Squadron(object):
                             if inst.qualified(plane) and plane.available(day,wave):
                                 maxEventExpr.add(self.ievents[i,p,d,w])
                                 maxHoursExpr.add(self.ievents[i,p,d,w]*(wave.planeHours()-0.2))
-                    self.m.addConstr(maxEventExpr<= inst.maxEvents,'No_more_than_%d_events_for_instructor_%s_on_day_%s'%(inst.maxEvents,i,d)) #Constraint I3
-                    self.m.addConstr(maxHoursExpr<= 8.0,'No_more_than_8_flight_hours_for_instructor_%s_on_day_%s'%(i,d)) #Constraint I4
+                    self.m.addConstr(maxEventExpr <= inst.maxEvents, 'No_more_than_%d_events_for_instructor_%s_on_day_%s' % (inst.maxEvents,i,d)) # Constraint I3
+                    self.m.addConstr(maxHoursExpr <= 8.0, 'No_more_than_8_flight_hours_for_instructor_%s_on_day_%s'%(i,d)) # Constraint I4
 
             #One event per day for students unless followsImmediately
             #Set onwing,offwing,check flight instructor requirements
@@ -426,7 +422,7 @@ class Squadron(object):
             #Student crew rest
             oneDay = timedelta(days=1)
             for subsequent in self.schedules:
-                if(day+oneDay==self.schedules[subsequent].date):
+                if(day+oneDay==self.schedules[subsequent].day):
                     w=self.generateCrewrestExclusion(d,subsequent,"Student")
                     for s in self.students:
                         stud = self.students[s]
@@ -450,7 +446,7 @@ class Squadron(object):
         eventsOnce = {}
         for d in self.schedules:
             sked = self.schedules[d]
-            day = sked.date
+            day = sked.day
             for s in self.students:
                 stud = self.students[s]
                 for w in sked.waves:
@@ -468,7 +464,7 @@ class Squadron(object):
         precedingEventsExpr = {}
         for d in self.schedules:
             sked = self.schedules[d]
-            day = sked.date
+            day = sked.day
             if d == 1:
                 for s,stud in self.students.iteritems():
                     if self.verbose:
@@ -577,7 +573,7 @@ class Squadron(object):
                     print('Perform maintenance on %s' % (v.varName))
         for d in self.schedules:
             sked = self.schedules[d]
-            day = sked.date
+            day = sked.day
             for p in self.planes:
                 plane = self.planes[p]
                 for w in self.schedules[d].waves: #This is a dictionary key integer

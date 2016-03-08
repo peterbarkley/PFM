@@ -9,15 +9,23 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 
-class Resource(object):
+from CommonEqualityMixin import CommonEqualityMixin
+
+class Resource(CommonEqualityMixin):
     """A squadron resource that can have a sniv"""
-    def __init__(self,id):
-        self.id = id
+    def __init__(self, *initial_data, **kwargs):
+        self.id = None
+        self.quals = []
         self.snivs = {} #Dictionary of snivs by id
         self._available = {} #Dictionary by day and wave containing whether the resource is available then
         self.resourceType = "Resource"
         self.squadron = None
         self.name = None
+        for dictionary in initial_data:
+            for key in dictionary:
+                setattr(self, key, dictionary[key])
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
 
     #Returns true if the asset is unavailable on day during wave
     #Takes a date day and a Wave object wave

@@ -11,11 +11,13 @@
 
 class StudentSortie(object):
     """Represents a scheduled event for a student. Has an event associated with it and a student"""
-    def __init__(self):
-        self.student = None #Student object
-        self.event = None
+    def __init__(self, student = None, event = None):
+        self.student = student # Student object
+        self.event = event
         self.wave = None
 
+    def __str__(self):
+        return str(self.student) + '\t' + str(self.event)
 def main():
     pass
 

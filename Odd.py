@@ -12,13 +12,13 @@
 from Flyer import Flyer
 from datetime import timedelta
 from datetime import datetime
-from sets import Set
 
 
 class Student(Flyer):
     """Student implementation of Flyer class. Adds a next event, onwing, partner, priority"""
 
     def __init__(self, *initial_data, **kwargs):
+        # self.student_ID = None
         self.nextEvent = None
         self.onwing = None #Instructor object
         self.partner = None #Student object
@@ -26,10 +26,11 @@ class Student(Flyer):
         self.lastFlight = None
         self.syllabus = None
         self.resourceType = "Student"
-        self.completedEvents = Set() #Set of events objects for each completed event
-        self.scheduledEvents = Set() #Set of events objects for each currently scheduled event
+        self.completedEvents = set() # set of events objects for each completed event
+        self.scheduledEvents = set() # set of events objects for each currently scheduled event
         self._possibleEvents = {}
         super(Student, self).__init__(*initial_data, **kwargs)
+        # self.id = self.student_ID
 
     #Should take in the number of flight days in the future that the events are possible
     #Returns the events the student can be feasibly scheduled for on that day
@@ -39,7 +40,7 @@ class Student(Flyer):
             return self._possibleEvents[(flyDay,first)]
         elif not first:
             possible=self.findPossible(flyDay,True)
-            newlyPossible = Set()
+            newlyPossible = set()
             for e in possible:
                 for f in e.followingEvents:
                     if f.followsImmediately:
@@ -49,7 +50,7 @@ class Student(Flyer):
             return possible
         elif flyDay > 1:
             possible=self.findPossible(flyDay-1,False)
-            newlyPossible = Set()
+            newlyPossible = set()
             for e in possible:
                 for f in e.followingEvents:
                     newlyPossible.add(f)
@@ -58,7 +59,7 @@ class Student(Flyer):
             return possible
         else:
             #First wave, first day, not in dictionary
-            possible=Set()
+            possible=set()
             for e in self.squadron.syllabus:
                 event = self.squadron.syllabus[e]
                 if event.syllabus == self.syllabus and event.initialEvent():
@@ -72,7 +73,7 @@ class Student(Flyer):
             self._possibleEvents[(flyDay,first)]=possible
             return possible
 
-    #Returns a Set of events that would be possible on 'day' in 'wave'
+    #Returns a set of events that would be possible on 'day' in 'wave'
     def events(self,day,wave):
         first = wave.first()
         return self.findPossible(day,first)

@@ -15,14 +15,14 @@ from Flyer import Flyer
 class Instructor(Flyer):
     """Instructor implementation of Flyer class. Adds a check pilot boolean"""
 
-    def __init__(self, id):
-        super(Instructor, self).__init__(id)
+    def __init__(self, *initial_data, **kwargs):
         self.check = False
         self.priority = -0.1 #Needs to be negative. This encourages the model to schedule the minimum number of instructors
         self.maxEvents = 3
         self.preferences = {} #1 is a high preference, 5 is a low preference
         self.resourceType = "Instructor"
         self.paid = 0
+        super(Instructor, self).__init__(*initial_data, **kwargs)
 
     def setPreference(self,d,w,amount):
         self.preferences[(d,w)]=amount

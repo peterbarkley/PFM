@@ -11,17 +11,18 @@
 from Resource import Resource
 from datetime import timedelta
 
+
 class Flyer(Resource):
     """This is the base class for instructors and students"""
-
-    def __init__(self,id):
-        super(Flyer, self).__init__(id)
-        self.quals = []
-        self.last = {'wave':None,'plane':None}
+    def __init__(self, *initial_data, **kwargs):
+        self.last = {'wave': None,'plane': None}
         self.weight = 180
         self.priority = 1
         self.resourceType = "Flyer"
-        self.crewRest = timedelta(hours=8)
+        self.crewRestHours = 10
+        self.crewDayHours = 12
+        super(Flyer, self).__init__(*initial_data, **kwargs)
+        self.crewRest = timedelta(hours = self.crewRestHours)
 
     #Returns true if the schedule should begin with this Flyer scheduled during 'wave' in 'plane'
     def seed(self,wave,plane):

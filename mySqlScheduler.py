@@ -8,6 +8,7 @@
 # Copyright:   (c) pbarkley 2015
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
+import mysql.connector
 import MySQLdb as mdb
 import sys
 import decimal
@@ -17,7 +18,7 @@ from Schedule import Schedule
 from Sniv import Sniv
 from Flyer import Flyer
 from Instructor import Instructor
-from Student import Student
+from Odd import Student
 from Event import Event
 from Sortie import Sortie
 from StudentSortie import StudentSortie
@@ -45,7 +46,7 @@ def main():
 
     if verbose:
         print "Loading model from database"
-    load(vtna,config)
+    load(vtna, config)
     if verbose:
         print "Solving model"
     solved = vtna.writeSchedules()
@@ -60,60 +61,34 @@ def main():
     #if verbose: print "Date loaded"
     return 0
 
-def load(vtna,config):
+def load(vtna, config):
 
-    con = mdb.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['db'])
-    with con:
-        cur = con.cursor()
-        cur.execute("SELECT VERSION()")
-
-        ver = cur.fetchone()
-
-        if verbose:
-            print "Database version : %s " % ver
-
-        cur = con.cursor(mdb.cursors.DictCursor)
+    # con = mdb.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['database'])
+    con = mysql.connector.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['database'])
+    try: # with con:
+        # cur = con.cursor()
+        cur = con.cursor(dictionary=True)
+        # cur = con.cursor(mdb.cursors.DictCursor)
         days = config['days']
         if days > 3:
             vtna.calculateMaintenance = True
 
-        #Loop over schedule table where not published and flight_day != NULL and add schedules for each flight_day
-        cur.execute("SELECT * FROM schedule WHERE (published = FALSE) LIMIT %s",(days)) # AND NOT flight_day = NULL
+        # Loop over schedule table where not published and flight_day != NULL and add schedules for each flight_day
+        # Ought to sort by date and not pull past schedules - day >= date.today()!
+        query = "SELECT * FROM schedule WHERE published = FALSE ORDER BY day ASC LIMIT %d" % days
+        cur.execute(query) # AND NOT flight_day = NULL
         i=1
-        priorities = {}
-        priorities[1]=1.0
-        priorities[2]=0.5
-        priorities[3]=0.3
-        priorities[4]=0.2
-        priorities[5]=0.18
-        priorities[6]=0.16
-        priorities[7]=0.14
-        priorities[8]=0.12
-        priorities[9]=0.11
-        priorities[10]=0.1
-
-        rows = cur.fetchall()
+        rows = cur.fetchall() # .fetchmany(size=days)
 
         for row in rows:
-            #i = int(row["flight_day"])
-            day = row["day"]
-            sked=Schedule(day)
+            sked = Schedule(row)
             sked.flyDay = i
-            sked.id = int(row["schedule_ID"])
-            sked.blank = row["blank"]
-            ppw = row["planes_per_wave"]
-            if ppw != None and ppw != 0:
-                sked.maxPlanesPerWave = int(row["planes_per_wave"])
-
-
-            #Set priority
-            """if row["priority"]!=None:
-                sked.priority = float(row["priority"])"""
-            sked.priority = priorities[i]
+            # Set priority
+            sked.priority = i ** (-0.5)  # priorities[i]
             if verbose:
                 print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %s'% (sked.id, sked.flyDay, day, sked.priority)
-            vtna.schedules[i]=sked
-            i = i + 1
+            vtna.schedules[i] = sked
+            i += 1
 
         vtna.totalFlightDays = len(rows)
 
@@ -128,8 +103,9 @@ def load(vtna,config):
         for d in vtna.schedules:
             sked = vtna.schedules[d]
             if not sked.blank:
-                sked.waves = {}
-                cur.execute("SELECT * FROM schedule_wave WHERE schedule_ID = %s",(sked.id))
+                sked.waves = {}# %(emp_no)s"
+                    # cursor.execute(select_stmt, { 'emp_no': 2 })
+                cur.execute("SELECT * FROM schedule_wave WHERE schedule_ID = %(schedule_ID)s", {'schedule_ID': sked.id})
                 rows = cur.fetchall()
                 createWaves(sked,rows,waves)
         if verbose:
@@ -140,7 +116,7 @@ def load(vtna,config):
         rows = cur.fetchall()
         for row in rows:
             i = int(row["event_ID"])
-            e = Event(i)
+            e = Event(event_ID = i)
             if row["check_instructor_req"]:
                 e.check = True
             if row["onwing_req"]:
@@ -174,9 +150,10 @@ def load(vtna,config):
         cur.execute("SELECT * FROM plane WHERE active=TRUE")
         rows = cur.fetchall()
         for row in rows:
-            #if verbose: print row["tail_number"],row["plane_type_ID"],row["max_cargo"]
+            # if verbose:
+            #   print row["tail_number"],row["plane_type_ID"],row["max_cargo"]
             p =row["tail_number"]
-            plane = Plane(p)
+            plane = Plane(id = p)
             plane.planetype = row["plane_type_ID"]
             ni = None
             tach = None
@@ -197,7 +174,7 @@ def load(vtna,config):
             #Add plane types
 
         #Add plane availability
-        cur.execute("SELECT * FROM plane_unavail WHERE (end >= %s and start <= %s)",(vtna.schedules[1].date.strftime('%Y-%m-%d'),(vtna.schedules[vtna.totalFlightDays].date+timedelta(days=1)).strftime('%Y-%m-%d')))
+        cur.execute("SELECT * FROM plane_unavail WHERE (end >= %s and start <= %s)",(vtna.schedules[1].day.strftime('%Y-%m-%d'),(vtna.schedules[vtna.totalFlightDays].day+timedelta(days=1)).strftime('%Y-%m-%d')))
         rows = cur.fetchall()
         i=1
         for row in rows:
@@ -220,7 +197,7 @@ def load(vtna,config):
             c = int(row["CFI_ID"])
             if verbose:
                 print c
-            inst = Instructor(c)
+            inst = Instructor(id = c)
             inst.maxEvents = row["max_events"]
             if row["C990"]:
                 inst.check = True
@@ -239,7 +216,7 @@ def load(vtna,config):
             s = int(row["student_ID"])
             if verbose:
                 print 'Student id ',s
-            stud = Student(s,vtna)
+            stud = Student(id = s, squadron = vtna)
             stud.syllabus = int(row["syllabus_ID"])
             if row["priority"] != None:
                 stud.priority = float(row["priority"])
@@ -253,7 +230,8 @@ def load(vtna,config):
                 print 'CFI %d onwing for student %d not in instructors!'%(cfi,s)
             else:
                 print 'no cfi for student %d'%(s)
-            vtna.students[s]= stud
+            vtna.students[s] = stud
+            # print vtna.students[s].__dict__
             partner_ID = row["partner_student_ID"]
             if partner_ID in vtna.students:
                 #if verbose: print "Add partners",s,partner_ID
@@ -288,7 +266,7 @@ def load(vtna,config):
             print "Quals loaded"
 
         #Add snivs for students & CFIs
-        cur.execute("SELECT * FROM sniv WHERE (end >= %s and start <= %s and approval=TRUE)",(vtna.schedules[1].date.strftime('%Y-%m-%d'),(vtna.schedules[vtna.totalFlightDays].date+timedelta(days=1)).strftime('%Y-%m-%d')))
+        cur.execute("SELECT * FROM sniv WHERE (end >= %s and start <= %s and approval=TRUE)",(vtna.schedules[1].day.strftime('%Y-%m-%d'),(vtna.schedules[vtna.totalFlightDays].day+timedelta(days=1)).strftime('%Y-%m-%d')))
         rows = cur.fetchall()
         i=1
         for row in rows:
@@ -312,15 +290,16 @@ def load(vtna,config):
             print "Snivs loaded"
 
         #Load most recent published schedule as schedule.today()
-        cur.execute("SELECT * FROM schedule WHERE published=TRUE ORDER BY day DESC")
+        cur.execute("SELECT * FROM schedule WHERE published=TRUE ORDER BY day DESC LIMIT 1")
         row = cur.fetchone()
         vtna.today.id = int(row["schedule_ID"])
-        vtna.today.date = row["day"]
-        cur.execute("SELECT * FROM schedule_wave WHERE schedule_ID = %s",(vtna.today.id))
+        vtna.today.day = row["day"]
+        query = "SELECT * FROM schedule_wave WHERE schedule_ID = %d" % vtna.today.id
+        cur.execute(query)
         rows = cur.fetchall()
         createWaves(vtna.today,rows,waves)
-
-        cur.execute("SELECT * FROM sortie WHERE schedule_ID = %s",(vtna.today.id))
+        query = "SELECT * FROM sortie WHERE schedule_ID = %s" % vtna.today.id
+        cur.execute(query)
         rows = cur.fetchall()
         for row in rows:
             s = Sortie()
@@ -361,7 +340,7 @@ def load(vtna,config):
                         if row["plane_tail_number"] in vtna.planes:
                             sortie.plane = vtna.planes[row["plane_tail_number"]]
                         sortie.studentSorties.append(ss)
-                        if vtna.today.date == (vtna.schedules[1].date-timedelta(days=1)):
+                        if vtna.today.day == (vtna.schedules[1].day-timedelta(days=1)):
                             #print "happy dance", stud.id, sortie.wave.id
                             sniv = Sniv()
                             sniv.begin = sortie.wave.times["Flyer"].begin
@@ -396,19 +375,21 @@ def load(vtna,config):
             begin = row["start"]
             end = row["end"]
             for d, sked in vtna.schedules.iteritems():
-                midnight = datetime.combine(sked.date,time(0))
-                start_time =midnight+begin
-                end_time = midnight+end
+                midnight = datetime.combine(sked.day, time(0))
+                start_time = midnight + begin
+                end_time = midnight + end
                 s = Sniv()
                 s.begin = start_time
                 s.end = end_time
-                r = Instructor(0)
+                r = Instructor(id = 'sample')
                 r.snivs[0] = s
                 for w, wave in sked.waves.iteritems():
-                    if not r.available(sked.date,wave):
-                        inst.setPreference(d,w,pref)
+                    if not r.available(sked.day, wave):
+                        inst.setPreference(d, w, pref)
                         if verbose:
                             print "Set preference for instructor %d, day %d, wave %d for value %d"%(c,d,w,pref)
+    finally:
+        con.close()
 
 
 
@@ -419,7 +400,7 @@ def createWaves(sked,rows,waves):
         #if verbose: print row["schedule_ID"],row["wave_ID"],row["priority"]
         w = Wave(i)
         #Plane times
-        midnight = datetime.combine(sked.date,time(0))
+        midnight = datetime.combine(sked.day,time(0))
         start_time =midnight+wave_entry["plane_start"]
         end_time = midnight+wave_entry["plane_end"]
         w.begin = start_time
@@ -440,17 +421,19 @@ def createWaves(sked,rows,waves):
 
 def writeToDatabase(vtna,config):
 
-    con = mdb.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['db'])
+    # con = mdb.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['db'])
+    con = mysql.connector.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['database'])
 
-    with con:
-        cur = con.cursor(mdb.cursors.DictCursor)
+    try: # with con:
+        # cur = con.cursor(mdb.cursors.DictCursor)
+        cur = con.cursor(dictionary=True)
 
         for d in vtna.schedules:
 
             sked = vtna.schedules[d]
-            day = sked.date
+            day = sked.day
 
-            cur.execute("SELECT * FROM schedule WHERE day=%s AND published=0",(day.strftime('%Y-%m-%d %H-%M-%S'))) # AND NOT flight_day = NULL
+            cur.execute("SELECT * FROM schedule WHERE day=%(day)s AND published=0 LIMIT 1", {'day': day}) # .strftime('%Y-%m-%d %H-%M-%S') AND NOT flight_day = NULL
             row = cur.fetchone()
             """if rows == ():
                 cur.execute("INSERT INTO schedule(day) VALUES(%s)",(day.strftime('%Y-%m-%d %H-%M-%S')))
@@ -459,10 +442,10 @@ def writeToDatabase(vtna,config):
                 sked.id = row["schedule_ID"]
             else:"""
                 #for row in rows:
-            if row != None:
+            if row:
                 sked.id = row["schedule_ID"]
-                cur.execute("DELETE FROM student_sortie WHERE schedule_ID=%s",(sked.id))
-                cur.execute("DELETE FROM sortie WHERE schedule_ID=%s",(sked.id))
+                cur.execute("DELETE FROM student_sortie WHERE schedule_ID=%(schedule_ID)s", {'schedule_ID': sked.id})
+                cur.execute("DELETE FROM sortie WHERE schedule_ID=%(schedule_ID)s", {'schedule_ID': sked.id})
                 #Delete student sorties?
 
                 for s in sked.sorties:
@@ -499,6 +482,8 @@ def writeToDatabase(vtna,config):
                             ss.event.instructionalHours,
                             sortie.plane.id))
                 print "Schedule for %s written to database"%(day)
+    finally:
+        con.close()
 
 if __name__ == '__main__':
     main()

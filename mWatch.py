@@ -1,16 +1,6 @@
-#-------------------------------------------------------------------------------
-# Name:        module1
-# Purpose:
-#
-# Author:      pbarkley
-#
-# Created:     14/05/2015
-# Copyright:   (c) pbarkley 2015
-# Licence:     <your licence>
-#-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
-# Name:        module1
+# Name:        Watchbill Maker
 # Purpose:
 #
 # Author:      pbarkley
@@ -47,7 +37,7 @@ class Watchbill(object):
         self.tads = {} #Dict w/ {user_ID: Resource(user_ID), ...}
         self.watches = {}
         self.m = Model()
-        self.timeLimit = 180
+        self.timeLimit = 30
         self.verbose = True
         self.vars = {}
 
@@ -63,10 +53,7 @@ def main():
     load(watchbill,config)
     if verbose:
         print "Solving model"
-    writeWatch(watchbill)
-    if verbose:
-        print "Writing model to database"
-    writeToDatabase(watchbill,config)
+    writeWatch(watchbill,config)
     #if verbose: print "Date loaded"
 
 
@@ -94,7 +81,6 @@ def load(vtna, config):
             sked.id = int(row["schedule_ID"])
             sked.blank = bool(row["blank"])
 
-            #Set priority
             if verbose:
                 print 'Computing schedule for schedule ID %d'% (sked.id)
             vtna.schedules[i]=sked
@@ -139,15 +125,19 @@ def load(vtna, config):
 
 
         #Loop over tads, adding them
-        cur.execute("SELECT * FROM user WHERE role = 'tad'")
+        cur.execute("SELECT * FROM user LEFT JOIN watch_quals ON user.user_ID = watch_quals.user_ID WHERE role = 'tad'")
         rows = cur.fetchall()
         for row in rows:
             s = int(row["user_ID"])
             if verbose:
                 print 'User id ',s
-            t = Resource(s)
-            t.name = (row["last_name"])
-            vtna.tads[s]= t
+            if s not in vtna.tads:
+                t = Resource(s)
+                t.name = (row["last_name"])
+                vtna.tads[s]= t
+            if row["watch_ID"] is not None:
+                vtna.tads[s].quals.append(int(row["watch_ID"]))
+
         if verbose:
             print "TADs loaded"
 
@@ -169,7 +159,7 @@ def load(vtna, config):
         if verbose:
             print "Snivs loaded"
 
-def writeWatch(vtna):
+def writeWatch(vtna,config):
 
     #Generate variables for each tad for each watch for each period
     objective = LinExpr()
@@ -185,7 +175,7 @@ def writeWatch(vtna):
     vtna.m.setObjective(z,GRB.MINIMIZE)
     #Generate constraints
 
-    #Constraint 1: No watch when snived
+    #Constraint 1: No watch when snivved
     for t, tad in vtna.tads.iteritems():
         for d, sked in vtna.schedules.iteritems():
             for w, watch in sked.watches.iteritems():
@@ -221,10 +211,11 @@ def writeWatch(vtna):
 
     #Stand 3 SDO U/I before SDO
     for t, tad in vtna.tads.iteritems():
-        for d, sked in vtna.schedules.iteritems():
-            vtna.m.addConstr(quicksum(vtna.vars[t,i,2,p] for i in range(1,d) for p in vtna.schedules[i].watches[2].periods) >= quicksum(vtna.vars[t,d,1,p] for p in sked.watches[1].periods), 'ui_%s_%d'%(tad.name,d))
-            if verbose:
-                print 'ui_%s_%d'%(tad.name,d)
+        if 1 not in tad.quals:
+            for d, sked in vtna.schedules.iteritems():
+                vtna.m.addConstr(quicksum(vtna.vars[t,i,2,p] for i in range(1,d) for p in vtna.schedules[i].watches[2].periods) >= quicksum(vtna.vars[t,d,1,p] for p in sked.watches[1].periods), 'ui_%s_%d'%(tad.name,d))
+                if verbose:
+                    print 'ui_%s_%d'%(tad.name,d)
 
     #No watch for blank schedules
     for d, sked in vtna.schedules.iteritems():
@@ -282,9 +273,15 @@ def writeWatch(vtna):
     if model.status == GRB.status.OPTIMAL:
         print('Optimal objective: %g' % model.objVal)
         model.write('model.sol')
+        if verbose:
+            print "Writing model to database"
+        writeToDatabase(vtna,config)
     elif model.status != GRB.status.INFEASIBLE:
         print('Optimization was stopped with status %d' % model.status)
         model.write('model.sol')
+        if verbose:
+            print "Writing model to database"
+        writeToDatabase(vtna,config)
     else:
         # Model is infeasible - compute an Irreducible Inconsistent Subsystem (IIS)
         print('')

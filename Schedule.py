@@ -18,13 +18,13 @@ from Flyer import Flyer
 class Schedule(object):
     """Contains all information necessary for structuring a day's schedule.
     Once a schedule is written, holds a list of the sorties in the schedule."""
-    def __init__(self,d):
+    def __init__(self, *initial_data, **kwargs):
         self.sorties={}
         self.backToBack = True #Whether instructors may fly back to back sorties with no break
         self.firstBrief = time(6,30) #Time of first brief
         self.briefLength = timedelta(hours=1)
         self.staggers = {} #A dictionary of staggered timedeltas for sorties like {'1':timedelta(minutes=5),'2':timedelta(minutes=7)}
-        self.date = d #A date object giving the date of the schedule to be
+        self.day = date.today() #A date object giving the date of the schedule to be
         self.waveLength = timedelta(hours=2.5)
         self.waveNumber = 5
         self.crewRest = False #Whether to build in crew rest constraints (more work: for previous day or subsequent?)
@@ -38,12 +38,25 @@ class Schedule(object):
         self.blank = False #Sets whether a schedule should contain no events
         self.flyDay = 1
         self.id = None
+        self.schedule_ID = None
         self.watches = {} #Dictionary of watch types needs on this day
         self.maxPlanesPerWave = 16
+        self.planes_per_wave = None
+        self.dawn = time(6,0)
+        self.dusk = time(20,0)
+        for dictionary in initial_data:
+            for key in dictionary:
+                setattr(self, key, dictionary[key])
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+        if self.planes_per_wave:
+            self.maxPlanesPerWave = self.planes_per_wave
+        self.id = self.schedule_ID
+
 
     def createWaves(self):
         self.waves = {}
-        _begin = datetime.combine(self.date,self.firstBrief) + self.briefLength
+        _begin = datetime.combine(self.day,self.firstBrief) + self.briefLength
         for i in range(1,self.waveNumber+1):
             _end = _begin + self.waveLength
             w=Wave(i)
@@ -65,13 +78,13 @@ class Schedule(object):
         for i in self.waves:
             for j in range(1,i):
                 if(j in self.waves):
-                    f = Flyer('sample')
+                    f = Flyer(id = 'sample')
                     f.snivs[0]=self.waves[j].times["Flyer"]
-                    if not f.available(self.date,self.waves[i]):
+                    if not f.available(self.day,self.waves[i]):
                         self.exclusiveWaves["Flyer"].append((j,i))
-                    f = Plane('sample')
+                    f = Plane(id = 'sample')
                     f.snivs[0]=self.waves[j].times["Plane"]
-                    if not f.available(self.date,self.waves[i]):
+                    if not f.available(self.day,self.waves[i]):
                         self.exclusiveWaves["Plane"].append((j,i))
 
     def setWaveNumber(self,wn):
