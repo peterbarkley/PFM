@@ -28,7 +28,7 @@ from sets import Set
 class Squadron(object):
     """Meta object for scheduling program. Including lists of students, instructors, planes, and schedules, as well a syllabus of events for the students"""
 
-    def __init__(self):
+    def __init__(self, *initial_data, **kwargs):
         self.planes = {} #Dictionary of plane objects like {'106RA': Plane('106RA'), ... }
         self.instructors = {}  #Dictionary of instructor objects like {9: Instructor(9), ... }
         self.students = {}  #Dictionary of student objects like {19: Student(19), ... }
@@ -39,7 +39,7 @@ class Squadron(object):
         self.ievents = {} #Dictionary containing decision variables for all possible instructor sorties within date range
         self.maintenance = {} #Dictionary of maintenance decision variables for plane p on day d like {(p,d,):Gurobi DV object, ... }
         self.m = Model() #Gurobi model
-        self.totalFlightDays = 1
+        self.days = 1
         self.timeLimit = 120
         self.verbose = True
         self.backToBack = False
@@ -48,6 +48,11 @@ class Squadron(object):
         self.sufficientTime = 0
         self.hardschedule = 0
         self.militaryPreference = 0
+        for dictionary in initial_data:
+            for key in dictionary:
+                setattr(self, key, dictionary[key])
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
 
     #Generates Waves in subsequent days that would be excluded by the crew rest requirements for a specific resource type
     #Returns a dictionary indexed by wave giving a list of the waves in the subsequent day that would be excluded b/c of crew rest for the resource type
@@ -486,7 +491,7 @@ class Squadron(object):
                                             print 'Same Day Schedule %s before scheduling immediately following %s on day %d during wave %d for student %s'%(event,f,d,w,s)
 
             nextDay = d+1
-            if d < self.totalFlightDays:
+            if d < self.days:
                 for s in self.students:
                     #print 'Looping for day %d and student %s'%(d,s)
                     stud = self.students[s]

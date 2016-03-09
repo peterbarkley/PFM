@@ -30,19 +30,19 @@ verbose = True;
 def main():
     config = {}
     execfile(sys.argv[1], config)
-    vtna = Squadron()
+    vtna = Squadron(config)
     global verbose
     verbose = config['verbose']
-    vtna.verbose = config['verbose']
-    vtna.timeLimit = config['timelimit']
-    vtna.backToBack = config['backtoback']
+    """vtna.verbose = config['verbose']
+    vtna.timeLimit = config['timeLimit']
+    vtna.backToBack = config['backToBack']
     vtna.hardschedule = 1 #config['hardschedule']
     if 'hardschedule' in config:
         vtna.hardschedule = config['hardschedule']
     if 'sufficientTime' in config:
         vtna.sufficientTime = config['sufficientTime']
     if 'militaryPreference' in config:
-        vtna.militaryPreference = config['militaryPreference']
+        vtna.militaryPreference = config['militaryPreference']"""
 
     if verbose:
         print "Loading model from database"
@@ -86,11 +86,11 @@ def load(vtna, config):
             # Set priority
             sked.priority = i ** (-0.5)  # priorities[i]
             if verbose:
-                print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %s'% (sked.id, sked.flyDay, day, sked.priority)
+                print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %s'% (sked.id, sked.flyDay, sked.day, sked.priority)
             vtna.schedules[i] = sked
             i += 1
 
-        vtna.totalFlightDays = len(rows)
+        vtna.days = len(rows)
 
         #Find waves
         cur.execute("SELECT * FROM wave")
@@ -174,7 +174,7 @@ def load(vtna, config):
             #Add plane types
 
         #Add plane availability
-        cur.execute("SELECT * FROM plane_unavail WHERE (end >= %s and start <= %s)",(vtna.schedules[1].day.strftime('%Y-%m-%d'),(vtna.schedules[vtna.totalFlightDays].day+timedelta(days=1)).strftime('%Y-%m-%d')))
+        cur.execute("SELECT * FROM plane_unavail WHERE (end >= %s and start <= %s)",(vtna.schedules[1].day.strftime('%Y-%m-%d'),(vtna.schedules[vtna.days].day+timedelta(days=1)).strftime('%Y-%m-%d')))
         rows = cur.fetchall()
         i=1
         for row in rows:
@@ -266,7 +266,7 @@ def load(vtna, config):
             print "Quals loaded"
 
         #Add snivs for students & CFIs
-        cur.execute("SELECT * FROM sniv WHERE (end >= %s and start <= %s and approval=TRUE)",(vtna.schedules[1].day.strftime('%Y-%m-%d'),(vtna.schedules[vtna.totalFlightDays].day+timedelta(days=1)).strftime('%Y-%m-%d')))
+        cur.execute("SELECT * FROM sniv WHERE (end >= %s and start <= %s and approval=TRUE)",(vtna.schedules[1].day.strftime('%Y-%m-%d'),(vtna.schedules[vtna.days].day+timedelta(days=1)).strftime('%Y-%m-%d')))
         rows = cur.fetchall()
         i=1
         for row in rows:
@@ -492,6 +492,7 @@ def writeToDatabase(vtna,config):
                             sortie.plane.id))
                 print "Schedule for %s written to database"%(day)
     finally:
+        con.commit()
         con.close()
 
 if __name__ == '__main__':
