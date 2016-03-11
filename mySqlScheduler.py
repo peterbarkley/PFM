@@ -128,7 +128,7 @@ def load(vtna, config):
             total_inst = float(row["ground_nonplane_hours"])+e.planeHours + e.flightHours
             e.instructionalHours = total_inst
             e.syllabus = int(row["syllabus_ID"])
-            e.maxStudents = int(row["max_students"])
+            e.max_students = int(row["max_students"])
             if row["follows_immediately"] != None and int(row["follows_immediately"]) == 1:
                 e.followsImmediately = True
             vtna.syllabus[i]=e
@@ -198,7 +198,7 @@ def load(vtna, config):
             if verbose:
                 print c
             inst = Instructor(id = c)
-            inst.maxEvents = row["max_events"]
+            inst.max_events = row["max_events"]
             if row["C990"]:
                 inst.check = True
             if row["paid"]:
@@ -220,8 +220,8 @@ def load(vtna, config):
             stud.syllabus = int(row["syllabus_ID"])
             if row["priority"] != None:
                 stud.priority = float(row["priority"])
-            if row["last_flight"]!=None:
-                stud.lastFlight = row["last_flight"]
+            if row["last_flight"] is not None:
+                stud.last_flight = row["last_flight"]
             cfi = row["onwing_CFI_ID"]
             if cfi in vtna.instructors:
                 #if verbose: print "Add instructor",cfi
@@ -268,23 +268,18 @@ def load(vtna, config):
         #Add snivs for students & CFIs
         cur.execute("SELECT * FROM sniv WHERE (end >= %s and start <= %s and approval=TRUE)",(vtna.schedules[1].day.strftime('%Y-%m-%d'),(vtna.schedules[vtna.days].day+timedelta(days=1)).strftime('%Y-%m-%d')))
         rows = cur.fetchall()
-        i=1
+        i = 1
         for row in rows:
             id = row["user_ID"]
             if verbose:
-                print id,row["start"],row["end"]
+                print id, row["start"], row["end"]
+            s = Sniv(row)
             if id in vtna.students:
-                s = Sniv()
-                s.begin = row["start"]
-                s.end = row["end"]
                 vtna.students[id].snivs[i]=s
-                i=i+1
+                i += 1
             elif id in vtna.instructors:
-                s = Sniv()
-                s.begin = row["start"]
-                s.end = row["end"]
                 vtna.instructors[id].snivs[i]=s
-                i=i+1
+                i += 1
 
         if verbose:
             print "Snivs loaded"
@@ -349,11 +344,11 @@ def load(vtna, config):
                                 land = midnight + sortie.land
                             sniv = Sniv()
                             sniv.begin = takeoff
-                            sniv.end = land + timedelta(hours=event.debriefHours) + stud.crewRest
+                            sniv.end = land + timedelta(hours=event.debrief_hours) + stud.crewRest
                             stud.snivs[0]=sniv
                             instructor_sniv = Sniv()
                             instructor_sniv.begin = takeoff
-                            instructor_sniv.end = land + timedelta(hours=event.debriefHours) + sortie.instructor.crewRest
+                            instructor_sniv.end = land + timedelta(hours=event.debrief_hours) + sortie.instructor.crewRest
                             sortie.instructor.snivs['crewrest' + str(row['student_sortie_ID'])] = instructor_sniv
             p = row["plane_tail_number"]
             if row["status"] == 'scheduled' and p in vtna.planes and row["sked_flight_hours"] != None:

@@ -21,6 +21,7 @@ class Resource(CommonEqualityMixin):
         self.resourceType = "Resource"
         self.squadron = None
         self.name = None
+        self.tags = {}
         for dictionary in initial_data:
             for key in dictionary:
                 setattr(self, key, dictionary[key])

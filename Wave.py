@@ -12,9 +12,10 @@ from Sniv import Sniv
 #from Schedule import Schedule
 from datetime import timedelta
 
+
 class Wave(object):
 
-    def __init__(self,id):
+    def __init__(self, id):
         self.id = id
         self.begin = None #a datetime giving the date and time for the start of the wave
         self.end = None
@@ -29,6 +30,7 @@ class Wave(object):
         self._canFollow = [] #This includes itself, so for an out-and-in the student can have sequential events that can follow immediately both in the same wave
         self._canFollowCalculated = False
         self.crewRestHours = 12 #Max time between first brief and last debrief
+        self.tags = []
 
     def __str__(self):
         return "wave"+str(self.id)

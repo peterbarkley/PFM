@@ -226,7 +226,7 @@ class Squadron(object):
         else:
             #Don't exceed remaining plane hours
             for p, plane in self.planes.iteritems():
-                self.m.addConstr(quicksum(self.sevents[stud.id,p,sked.flyDay,wave.id,event.id]*self.syllabus[event.id].flightHours
+                self.m.addConstr(quicksum(self.sevents[stud.id,p,sked.flyDay,wave.id,event.id]*event.flightHours
                 for sked in self.schedules.itervalues()
                 for wave in self.schedules[sked.flyDay].waves.itervalues()
                 for stud in self.students.itervalues()
@@ -312,8 +312,8 @@ class Squadron(object):
                                 #Max students constraint
                                 for event in stud.events(d,wave):
                                     if self.verbose:
-                                        print 'Event %d day %d wave %d maxstuds %d'%(event.id,d,w,event.maxStudents)
-                                    maxStuds = min(maxStuds,event.maxStudents)
+                                        print 'Event %d day %d wave %d maxstuds %d' % (event.id, d, w, event.max_students)
+                                    maxStuds = min(maxStuds, event.max_students)
                                     maxStudExpr.add(self.sevents[s,p,d,w,event.id])
                                     if event.flightHours > 0.0:
                                         maxWeightExpr.add(stud.weight/wave.studentMultiple*self.sevents[s,p,d,w,event.id])
@@ -355,7 +355,7 @@ class Squadron(object):
                             if inst.qualified(plane) and plane.available(day,wave):
                                 maxEventExpr.add(self.ievents[i,p,d,w])
                                 maxHoursExpr.add(self.ievents[i,p,d,w]*(wave.planeHours()-0.2))
-                    self.m.addConstr(maxEventExpr <= inst.maxEvents, 'No_more_than_%d_events_for_instructor_%s_on_day_%s' % (inst.maxEvents,i,d)) # Constraint I3
+                    self.m.addConstr(maxEventExpr <= inst.max_events, 'No_more_than_%d_events_for_instructor_%s_on_day_%s' % (inst.max_events,i,d)) # Constraint I3
                     self.m.addConstr(maxHoursExpr <= 8.0, 'No_more_than_8_flight_hours_for_instructor_%s_on_day_%s'%(i,d)) # Constraint I4
 
             #One event per day for students unless followsImmediately

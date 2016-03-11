@@ -11,9 +11,17 @@
 
 from datetime import date, datetime, time, timedelta
 
+
 class Sniv(object):
     """This is the sniv class"""
 
-    def __init__(self):
+    def __init__(self, *initial_data, **kwargs):
         self.begin = datetime.now()
         self.end = datetime.now()
+        self.sniv_ID = None
+        for dictionary in initial_data:
+            for key in dictionary:
+                setattr(self, key, dictionary[key])
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
