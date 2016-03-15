@@ -13,7 +13,8 @@ from StudentSortie import StudentSortie
 from Device import Device
 from Wave import Wave
 from Syllabus import Syllabus
-
+from Constraint import Constraint
+from Tag import Tag
 
 verbose = True
 
@@ -25,15 +26,15 @@ def main():
     global verbose
     verbose = config['verbose']
     load(vt, config)
+    solved = vt.writeSchedules()
     if verbose:
-        print vt.__dict__
+        # print vt.__dict__
         for d in vt.devices.values():
             print d.__dict__
         for i in vt.instructors.values():
             print i.__dict__
         for s in vt.students.values():
             print s.__dict__
-    solved = vt.writeSchedules()
     if vt.hardschedule and not solved:
         vt.hardschedule = 0
         solved = vt.writeSchedules()
@@ -59,20 +60,28 @@ def load(vt, config):
         cur = con.cursor(dictionary=True)
         days = config['days']
 
+        loadTags(vt, cur)
         loadSyllabi(vt, cur)
         loadSchedules(vt, cur)
+        con.commit()
         loadForecast(vt, cur)
         loadScheduleWaves(vt, cur)
         loadDevices(vt, cur)
         loadInstructors(vt, cur)
         loadStudents(vt, cur)
-        loadTags(vt,cur)
+        loadResourceTags(vt, cur)
         loadSnivs(vt, cur)
 
     finally:
-        con.commit()
         con.close()
 
+
+def loadTags(vt, cur):
+    if verbose:
+        print "Loading tags"
+    cur.execute("SELECT * FROM tag WHERE 1")
+    for row in cur:
+        vt.tags[row['tag_ID']] = row['name']
 
 def loadSyllabi(vt, cur):
     if verbose:
@@ -146,13 +155,15 @@ def loadForecast(vt, cur):
 def loadWaves(vt, cur):
     if verbose:
         print "Loading waves"
-    cur.execute('SELECT * FROM wave '
+    cur.execute('SELECT  wave.wave_ID,device_start,device_end,flyer_start,flyer_end,student_multiple  FROM wave '
                 'LEFT JOIN wave_tag on wave.wave_ID = wave_tag.wave_ID '
                 'LEFT JOIN tag ON wave_tag.tag_ID = tag.tag_ID '
                 'WHERE tag.name = "default" AND organization_ID = %(organization_ID)s',
                 {'organization_ID': vt.organization_ID})
 
-    return cur.fetchall()
+    rows = cur.fetchall()
+    print rows
+    return rows
 
 
 # Create waves for each schedule
@@ -167,8 +178,9 @@ def loadScheduleWaves(vt, cur):
     wave_tags = {}
     for w in cur:
         if not w['wave_ID'] in wave_tags:
-            wave_tags[w['wave_ID']] = []
-        wave_tags[w['wave_ID']].append(w['name'])
+            wave_tags[w['wave_ID']] = set()
+        wave_tags[w['wave_ID']].add(w['name'])
+        print w['wave_ID'], w['name']
     for s in vt.schedules.values():
         if not s.blank:
             if s.use_default_waves:
@@ -176,7 +188,10 @@ def loadScheduleWaves(vt, cur):
                     default_waves = loadWaves(vt, cur)
                 waves = default_waves
             else:
-                cur.execute("SELECT * FROM schedule_wave LEFT JOIN wave WHERE schedule_ID = %(schedule_ID)s", {'schedule_ID': s.id})
+                cur.execute("SELECT wave.wave_ID, device_start, device_end, flyer_start, flyer_end, student_multiple "
+                            "FROM schedule_wave LEFT JOIN wave "
+                            "ON wave.wave_ID = schedule_wave.wave_ID "
+                            "WHERE schedule_ID = %(schedule_ID)s", {'schedule_ID': s.id})
                 waves = cur.fetchall()
         createWaves(vt, s, waves, wave_tags)
     if verbose:
@@ -205,7 +220,8 @@ def createWaves(vt, s, waves, wave_tags):
         w.priority = vt.wavePriority(w)
         if wave_entry["student_multiple"] is not None:
             w.studentMultiple = float(wave_entry["student_multiple"])
-        w.tags = wave_tags.get(i)
+        if i in wave_tags:
+            w.tags = wave_tags[i]
         s.waves[i] = w
     s.findExclusiveWaves()
 
@@ -213,19 +229,46 @@ def createWaves(vt, s, waves, wave_tags):
 def loadEvents(vt, cur):
     if verbose:
         print "Loading events"
-    query = "SELECT * FROM event LEFT JOIN event_hierarchy ON event.event_ID = event_hierarchy.parent_event "\
+    """query = "SELECT * FROM event WHERE 1")
+    LEFT JOIN event_hierarchy ON event.event_ID = event_hierarchy.parent_event "\
             "WHERE event_hierarchy.syllabus_ID IS NULL "
     for s in vt.syllabus:
-        query += "OR event_hierarchy.syllabus_ID = %s " % s
+        query += "OR event_hierarchy.syllabus_ID = %s " % s"""
 
-    cur.execute(query)
+    cur.execute("SELECT * FROM event WHERE 1")
     for row in cur:
         if not row['event_ID'] in vt.events:
             vt.events[row['event_ID']] = Event(row)
+
+    query = "SELECT * FROM event_hierarchy WHERE event_hierarchy.syllabus_ID IS NULL "
+    for s in vt.syllabus:
+        query += "OR event_hierarchy.syllabus_ID = %s " % s
+    cur.execute(query)
+    for row in cur:
         s = row['syllabus_ID']
         if s in vt.syllabus:
-            vt.syllabus[s].event_arcs += (row['parent_event'], row['child_event'])
-            vt.syllabus[s].events.add(vt.events[row['event_ID']])
+            vt.syllabus[s].events[row['parent_event']] = vt.events[row['parent_event']]
+            vt.syllabus[s].events[row['child_event']] = vt.events[row['child_event']]
+            vt.syllabus[s].event_arcs += [(row['parent_event'], row['child_event'])]
+
+    loadConstraints(vt, cur)
+    loadEventConstraints(vt, cur)
+
+
+def loadConstraints(vt, cur):
+    cur.execute("SELECT * FROM `constraint` WHERE 1 ")
+    for row in cur:
+        vt.constraints[row['constraint_ID']] = Constraint(row)
+
+
+def loadEventConstraints(vt, cur):
+    cur.execute("SELECT * FROM event_constraint "
+                "WHERE organization_ID = %(organization_ID)s",
+                {'organization_ID': vt.organization_ID})
+    for row in cur:
+        e = row['event_ID']
+        if e in vt.events:
+            vt.events[e].constraints.append(vt.constraints[row['constraint_ID']])
 
 
 # Load all active devices for the squadron
@@ -263,12 +306,13 @@ def loadStudentSyllabi(vt, cur):
                 "LEFT JOIN hierarchy ON child = student.student_ID "
                 "WHERE student.status = 'active' AND parent = %(parent)s "
                 "AND (student_syllabus.stop > NOW() OR student_syllabus.stop IS NULL) "
+                "AND student_syllabus.outcome IS NULL "
                 "AND (hierarchy.stop > NOW() OR hierarchy.stop IS NULL)",
                 {'parent': vt.organization_ID})
 
     for s in cur:
         syll = vt.syllabus[s['syllabus_ID']]
-        vt.students[s['student_ID']].syllabus[syll.precedence] = syll
+        vt.students[s['student_ID']].syllabus.add(syll)
 
 
 def loadStudents(vt, cur):
@@ -283,8 +327,8 @@ def loadStudents(vt, cur):
     for row in cur:
         s = int(row["student_ID"])
         if verbose:
-            print 'Student id ', s
-        stud = Student(row, squadron=vt)
+            print row, ","
+        stud = Student(row, squadron=vt, priority=1)
         vt.students[s] = stud
 
 
@@ -300,13 +344,15 @@ def loadStudentEvents(vt, cur):
                 "LEFT JOIN sortie ON sortie.sortie_ID = student_sortie.sortie_ID "
                 "WHERE student.status = 'active' AND parent = %(parent)s "
                 "AND (hierarchy.stop > NOW() OR hierarchy.stop IS NULL) "
-                "AND sortie.scheduled_land >= hierarchy.start",
+                "AND sortie.scheduled_land >= hierarchy.start "
+                "AND student_syllabus.outcome IS NULL ",
                 {'parent': vt.organization_ID})
     for row in cur:
         # Add progressing events to set for student
         if row['progessing_event'] == 1:
-            stud = vt.students[row['student_ID']]
-            stud.progressing += (row['event_ID'], vt.syllabus[row['syllabus_ID']])
+            sd = vt.students[row['student_ID']]
+            e = vt.events.get(row['event_ID'])
+            stud.progressing.add(e)
 
         # Future work: reduce available plane hours based on scheduled events
 
@@ -338,28 +384,42 @@ def loadStudentEvents(vt, cur):
 
 
 # Loads tags for devices, students and instructors
-def loadTags(vt, cur):
-    cur.execute("SELECT resource_ID, tag.tag_ID, expiration, object_resource_ID, object_tag_ID, name, length FROM resource_tag "
-                "LEFT JOIN tag ON resource_tag.tag_ID = tag.tag_ID "
+def loadResourceTags(vt, cur):
+    cur.execute("SELECT resource_ID, t.tag_ID, expiration, object_resource_ID, object_tag_ID, t.name as tag_name, "
+                "t.length, otag.name as object_tag_name "
+                "FROM resource_tag LEFT JOIN tag AS t ON resource_tag.tag_ID = t.tag_ID "
+                "LEFT JOIN tag AS otag ON resource_tag.object_tag_ID = otag.tag_ID "
                 "LEFT JOIN hierarchy ON resource_tag.resource_ID = child "
-                "WHERE parent = %(parent)s "
-                "AND (stop > NOW() OR stop IS NULL) "
-                "AND (expiration > NOW() OR expiration IS NULL)",
+                "WHERE parent = %(parent)s  AND (stop > NOW() OR stop IS NULL) "
+                "AND (expiration > NOW() OR expiration IS NULL) ",
                 {'parent': vt.organization_ID})
     tags = {}
-    for tag in cur:
-        if not tag['resource_ID'] in tags:
-            tags[tag['resource_ID']] = {}
-        tags[tag['resource_ID']][tag['tag_ID']] = tag
+    for row in cur:
+        t = row['tag_name']
+        i = row['tag_ID']
+        if row['object_resource_ID'] is not None:
+            i += row['object_resource_ID']
+            t += '_for_' + str(row['object_resource_ID'])
+        if row['object_tag_ID'] is not None:
+            i += row['object_tag_ID']
+            t += '_for_' + row['object_tag_name']  #  Should return tag name
+        if row['resource_ID'] not in tags:
+            tags[row['resource_ID']] = set()
+        if i not in vt.tags:
+            vt.tags[i] = t  # Tag(row)
+        tags[row['resource_ID']].add(vt.tags[i])
     for d in vt.devices.values():
         if d.device_ID in tags:
-            d.tags.update(tags[d.device_ID])
+            d.tags = tags[d.device_ID]
+            print d, tags[d.device_ID]
     for i in vt.instructors.values():
         if i.instructor_ID in tags:
-            i.tags.update(tags[i.instructor_ID])
+            i.tags = tags[i.instructor_ID]
+            print i, tags[i.instructor_ID]
     for s in vt.students.values():
         if s.student_ID in tags:
-            s.tags.udpate(tags[s.student_ID])
+            s.tags = tags[s.student_ID]
+            print s, tags[s.student_ID]
 
 
 def loadSnivs(vt, cur):
@@ -386,13 +446,68 @@ def loadSnivs(vt, cur):
 
 def write(vt, config):
 
+    con = mysql.connector.connect(host=config['host'],
+                                  port=config['port'],
+                                  user=config['user'],
+                                  passwd=config['password'],
+                                  db=config['database'])
     try:
-        con = mysql.connector.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['database'])
         cur = con.cursor(dictionary=True)
         days = config['days']
+        for day, schedule in vt.schedules.items():
+
+            # Get correct id for schedule and verify it is unpublished
+            cur.execute("SELECT schedule_ID, published FROM schedule WHERE day=%(day)s LIMIT 1",
+                        {'day': schedule.day})
+            row = cur.fetchone()
+            if row is not None and not row['published']:
+                i = row['schedule_ID']
+                # Delete old non-hard scheduled entries for sortie and studentsortie
+                cur.execute("DELETE FROM student_sortie WHERE schedule_ID=%(schedule_ID)s", {'schedule_ID': i})
+                cur.execute("DELETE FROM sortie WHERE schedule_ID=%(schedule_ID)s", {'schedule_ID': i})
+                # Write sorties
+                for sortie in schedule.sorties.values():
+                    sortie.schedule_ID = i
+                    cur.execute("INSERT INTO sortie(brief, scheduled_takeoff, scheduled_land, instructor_ID, schedule_ID, wave_ID) "
+                                "VALUES(%(brief)s, "
+                                "%(scheduled_takeoff)s, "
+                                "%(scheduled_land)s, "
+                                "%(instructor_ID)s, "
+                                "%(schedule_ID)s,"
+                                "%(wave_ID)s)",
+                                sortie.export())
+                    # Write student sorties
+                    sortie_ID = cur.lastrowid
+                    for ss in sortie.studentSorties:
+                        """if verbose:
+                            print ss.student.id, ss.event.id"""
+                        # Add other types of hours as well ...
+                        cur.execute("INSERT INTO student_sortie "
+                                    "(schedule_ID, sortie_ID, student_ID, event_ID, sked_flight_hours, sked_inst_hours, device_ID) "
+                                    "VALUES(%(schedule_ID)s, "
+                                    "%(sortie_ID)s, "
+                                    "%(student_ID)s,%(event_ID)s,%(sked_flight_hours)s,%(sked_inst_hours)s,%(device_ID)s)",
+                                    {'schedule_ID': i,
+                                    'sortie_ID': sortie_ID,
+                                    'student_ID': ss.student.student_ID,
+                                    'event_ID': ss.event.event_ID,
+                                    'sked_flight_hours': ss.event.flightHours,
+                                    'sked_inst_hours': ss.event.instructionalHours,
+                                    'device_ID': sortie.plane.device_ID})
+                print "Schedule for %s written to database"%(day)
+
 
     finally:
+        con.commit()
         con.close()
+
+
+def test(config):
+    vt = TrainingSquadron(config)
+    global verbose
+    verbose = True
+    load(vt, config)
+    return vt
 
 
 if __name__ == '__main__':

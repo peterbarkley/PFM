@@ -14,8 +14,6 @@ from gurobipy import *
 from Sniv import Sniv
 from Flyer import Flyer
 from Instructor import Instructor
-import Student
-reload(Student)
 from Odd import Student
 from Event import Event
 from Sortie import Sortie
@@ -47,6 +45,7 @@ class Squadron(object):
         self.maxPlanesPerWave = 16
         self.sufficientTime = 0
         self.hardschedule = 0
+        self.max_events = 2
         self.militaryPreference = 0
         for dictionary in initial_data:
             for key in dictionary:
@@ -69,7 +68,7 @@ class Squadron(object):
             wave1=self.schedules[day1].waves[w1]
             rest=Sniv()
             rest.begin = wave1.times[resourceType].end
-            rest.end = rest.begin + s.crewRest
+            rest.end = rest.begin + s.crewRest()
             s.snivs[0]=rest
             for w2 in self.schedules[day2].waves:
                 wave2=self.schedules[day2].waves[w2]
@@ -105,6 +104,8 @@ class Squadron(object):
             m.write('tune.prm')
         """
         # Solve the model using the tuned parameters
+        """if True: # self.verbose:
+            self.m.write('model.lp')"""
         self.m.optimize()
 
         model = self.m
@@ -237,7 +238,7 @@ class Squadron(object):
         for d in self.schedules:
             sked = self.schedules[d]
             day = sked.day
-            #Exclusive wave loop for planes
+            # Exclusive wave loop for planes
             for p, plane in self.planes.iteritems():
                 for w in sked.exclusiveWaves["Plane"]:
                     wave1=sked.waves[w[0]]
@@ -381,7 +382,8 @@ class Squadron(object):
                         for p in self.planes:
                             plane = self.planes[p]
                             if stud.qualified(plane) and plane.available(day,wave):
-                                #Should probably just calculate the eligible instructors in student or event object. Problem is that it requires both.
+                                #  Should probably just calculate the eligible instructors in student or event object.
+                                #  Problem is that it requires both.
                                 for event in stud.events(d,wave):
                                     e=event.id
                                     if not event.followsImmediately:

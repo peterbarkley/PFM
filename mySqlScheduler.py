@@ -217,8 +217,10 @@ def load(vtna, config):
             if verbose:
                 print 'Student id ',s
             stud = Student(id = s, squadron = vtna)
+            stud.crewRestHours = 12
+            # stud.crewRest = timedelta(hours=12)
             stud.syllabus = int(row["syllabus_ID"])
-            if row["priority"] != None:
+            if row["priority"] is not None:
                 stud.priority = float(row["priority"])
             if row["last_flight"] is not None:
                 stud.last_flight = row["last_flight"]
@@ -344,11 +346,11 @@ def load(vtna, config):
                                 land = midnight + sortie.land
                             sniv = Sniv()
                             sniv.begin = takeoff
-                            sniv.end = land + timedelta(hours=event.debrief_hours) + stud.crewRest
+                            sniv.end = land + timedelta(hours=event.debrief_hours) + stud.crewRest()
                             stud.snivs[0]=sniv
                             instructor_sniv = Sniv()
                             instructor_sniv.begin = takeoff
-                            instructor_sniv.end = land + timedelta(hours=event.debrief_hours) + sortie.instructor.crewRest
+                            instructor_sniv.end = land + timedelta(hours=event.debrief_hours) + sortie.instructor.crewRest()
                             sortie.instructor.snivs['crewrest' + str(row['student_sortie_ID'])] = instructor_sniv
             p = row["plane_tail_number"]
             if row["status"] == 'scheduled' and p in vtna.planes and row["sked_flight_hours"] != None:
@@ -454,14 +456,6 @@ def writeToDatabase(vtna,config):
 
                 for s in sked.sorties:
                     sortie = sked.sorties[s]
-                    statement = "INSERT INTO sortie(brief,scheduled_takeoff,scheduleD_land,CFI_ID,schedule_ID,wave_ID) VALUES(%s,%s,%s,%d,%s,%d)",(sortie.brief.strftime('%H:%M:%S'),
-                        sortie.takeoff.strftime('%H:%M:%S'),
-                        sortie.land.strftime('%H:%M:%S'),
-                        int(sortie.instructor.id),
-                        int(sked.id),
-                        int(sortie.wave.id));
-                    """if verbose:
-                        print statement"""
                     cur.execute("INSERT INTO sortie(sortie_ID,brief,scheduled_takeoff,scheduleD_land,CFI_ID,schedule_ID,wave_ID) VALUES(NULL,%s,%s,%s,%s,%s,%s)",(
                         sortie.brief.strftime('%H:%M:%S'),
                         sortie.takeoff.strftime('%H:%M:%S'),

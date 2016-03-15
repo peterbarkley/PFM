@@ -41,6 +41,7 @@ class Event(object):
         self.syllabus = 1
         self.rules = []
         self.graded = True
+        self.constraints = []
         for dictionary in initial_data:
             for key in dictionary:
                 setattr(self, key, dictionary[key])
@@ -49,7 +50,7 @@ class Event(object):
         self.id = self.event_ID
 
     def __str__(self):
-        return "Event " + str(self.id)
+        return "Event_" + str(self.id)
 
     def flight(self):
         return self.flightHours > 0
@@ -61,7 +62,8 @@ class Event(object):
     def initialEvent(self):
         return len(self.precedingEvents) == 0
 
-
+    def deviceHours(self):
+        return float(self.dual_flight_hours + self.solo_flight_hours + self.ground_device_hours)
 
 def main():
     pass

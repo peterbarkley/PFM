@@ -13,7 +13,7 @@
 class Rule(object):
     """Implements the rule class"""
 
-    def __init__(self,id):
+    def __init__(self, id):
         self.id = id # Rule name
         self.positive = True # False if the rule is a negation
         self.subject = None # Resource type of rule subject (like instructor for onwing qual)
@@ -21,7 +21,6 @@ class Rule(object):
         # self.object = None # Lists object of rule (like student for onwing)
         self.value = None # Numeric value associated with rule
         self.operator = None # String of operator associated with value '<=', '<', etc.
-
 
     def __str__(self):
         return "Rule " + str(self.id)

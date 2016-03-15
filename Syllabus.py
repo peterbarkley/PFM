@@ -9,9 +9,9 @@ class Syllabus(object):
         self.organization_ID = None
         self.device_type_ID = None
         self.precedence = None
-        self.event_arcs = tuplelist()
+        self.event_arcs = tuplelist()  # Tuplelist of arcs (parent event id, child event id)
         self._ancestors = {}
-        self.events = set()
+        self.events = {}  # Set of event objects
         for dictionary in initial_data:
             for key in dictionary:
                 setattr(self, key, dictionary[key])
@@ -32,8 +32,9 @@ class Syllabus(object):
 
     def ancestors(self, e):
         if e not in self._ancestors:
-            self._ancestors[e] = set()
-            for p in self.parents(e):
-                self._ancestors[e] += self.ancestors(p)
+            parents = self.parents(e)
+            self._ancestors[e] = parents
+            for p in parents:
+                self._ancestors[e] = self.ancestors(p)|self._ancestors[e]
 
         return self._ancestors[e]

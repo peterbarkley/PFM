@@ -22,7 +22,7 @@ class Flyer(Resource):
         self.crewRestHours = 8
         self.crewDayHours = 12
         super(Flyer, self).__init__(*initial_data, **kwargs)
-        self.crewRest = timedelta(hours = self.crewRestHours)
+        # self.crewRest = timedelta(hours = self.crewRestHours)
 
     #Returns true if the schedule should begin with this Flyer scheduled during 'wave' in 'plane'
     def seed(self,wave,plane):
@@ -36,9 +36,12 @@ class Flyer(Resource):
     #Might want setQual(self,planetype) which appends a planetype string to self.quals
 
     #Might want getQual(self,planetype) returns true if planetype in quals
-    def qualified(self,plane):
+    def qualified(self, plane):
         planetype = plane.planetype
         return planetype in self.quals
+
+    def crewRest(self):
+        return timedelta(hours = self.crewRestHours)
 
 
 def main():
