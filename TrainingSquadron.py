@@ -27,13 +27,22 @@ class TrainingSquadron(Squadron):
 
     # Returns the min priority value across forecasts that overlap with w
     def wavePriority(self, w):
-        return 1
+        priority = 1.0
+        if "room" in w.tags:
+            priority = 0.5
+        return priority
 
     def createVariables(self):
         if self.verbose:
             print "Creating variables"
         base_tier = 0
         objective = LinExpr()
+
+        # Loop over days, waves, students, events, and devices creating decision variables
+        # Check to make sure events could feasibly be scheduled in that day and wave
+        # Check to make sure event could be feasibly scheduled on that device
+        # Check to make sure student is qualified on that device
+        # If student event is hard scheduled, only build variables for acceptable devices and waves
         for day, schedule in self.schedules.items():
             if self.verboser:
                 print day
@@ -49,22 +58,39 @@ class TrainingSquadron(Squadron):
                         # event = self.events[e]
                         if self.verboser:
                             print day, event
-                        for device in self.devices.values():
-                            if self.verboser:
-                                n = '%s_%s_%s_day_%s_%s' % (student, event, device, day, wave)
-                                print n
-                                print device, device.tags, student.tags, device.category, event.device_category, wave.tags
-                            # Future work: filter for device availability
-                            # Future work: filter for wave matching event constraints (night vs day)
-                            if device.tags <= student.tags and device.category == event.device_category and device.category in wave.tags:
-                                self.x += [(student, event, device, day, wave)]
-                                n = '%s_%s_%s_day_%s_%s' % (student, event, device, day, wave)
-                                self.sevents[student, event, device, day, wave] = self.m.addVar(vtype=GRB.BINARY,
-                                                                                   name=n)
-                                objective.add(schedule.priority *
-                                              wave.priority *
-                                              student.getPriority() *
-                                              self.sevents[(student, event, device, day, wave)])
+                        acceptable = True
+                        if ((student, event) in schedule.hardschedule and
+                                (schedule.hardschedule[(student, event)]['wave'] is not None) and
+                                wave != schedule.hardschedule[(student, event)]['wave']):
+                            acceptable = False
+
+                        if acceptable and (event.device_category in wave.tags):
+                            if ((student, event) in schedule.hardschedule and
+                                    (schedule.hardschedule[(student, event)]['device'] is not None)):
+                                devices = [schedule.hardschedule[(student, event)]['device']]
+                            else:
+                                devices = self.devices.values()
+                            for device in devices:
+                                if self.verboser:
+                                    n = '%s_%s_%s_day_%s_%s' % (student, event, device, day, wave)
+                                    print n
+                                    print device, device.tags, student.tags, \
+                                        device.category, event.device_category, wave.tags
+                                # Future work: filter for device availability
+                                # Future work: filter for wave matching event constraints (night vs day)
+                                if (device.tags <= student.tags and
+                                        device.category == event.device_category and
+                                        device.category in wave.tags):
+                                    self.x += [(student, event, device, day, wave)]
+                                    n = '%s_%s_%s_day_%s_%s' % (student, event, device, day, wave)
+                                    self.sevents[student, event, device, day, wave] = self.m.addVar(vtype=GRB.BINARY,
+                                                                                                    name=n)
+                                    objective.add(schedule.priority *
+                                                  wave.priority *
+                                                  student.getPriority() *
+                                                  self.sevents[(student, event, device, day, wave)])
+
+                # Loop over days, waves, instructors and devices creating instructor decision variables
                 for instructor in self.instructors.values():
                     # Future work: filter for instructor availability
                     if self.verboser:
@@ -105,13 +131,31 @@ class TrainingSquadron(Squadron):
         # Formation flight constraint
         for student, event, device, day, wave in x('*', '*', '*', '*', '*'):
             #  Assign an eligible instructor for each student event
-            self.m.addConstr(se[student, event, device, day, wave] <=
-                             quicksum(ie[instructor, device, day, wave]
-                                      for instructor, device, day, wave
-                                      in y('*', device, day, wave)
-                                      if self.eligible(event, instructor=instructor, student=student, )))
+            if ((student, event) not in self.schedules[day].hardschedule) or \
+                    (self.schedules[day].hardschedule[(student, event)]['instructor'] is None):
+                self.m.addConstr(se[student, event, device, day, wave] <=
+                                 quicksum(ie[instructor, device, day, wave]
+                                          for instructor, device, day, wave
+                                          in y('*', device, day, wave)
+                                          if self.eligible(event, instructor=instructor, student=student, )),
+                                 'Schedule_eligible_instructor_for_%s_%s_%s_day_%s_%s' %
+                                 (student, event, device, day, wave))
+            else:
+                instructor = self.schedules[day].hardschedule[(student, event)]['instructor']
+                self.m.addConstr(se[student, event, device, day, wave] <=
+                                 quicksum(ie[instructor, device, day, wave]
+                                          for instructor, device, day, wave
+                                          in y(instructor, device, day, wave)),
+                                 '%s_hard_scheduled_for_%s_%s_%s_day_%s_%s' %
+                                 (instructor, student, event, device, day, wave))
 
         for day, schedule in self.schedules.items():
+            # Hard scheduled event constraint
+            for student, event in schedule.hardschedule:
+                self.m.addConstr(quicksum(se[student, event, device, day, wave]
+                                          for student, event, device, day, wave in
+                                          x(student, event, '*', day, '*')) == 1,
+                                 'Hard_schedule_%s_%s_on_day_%s' % (student, event, day))
             for wave in schedule.waves.values():
                 # Aircraft launches per slot time period must not exceed assigned squadron airfield slots
                 # Future work: replace the 3 with a database entry tied to aircraft airfield category and squadron
@@ -237,11 +281,22 @@ class TrainingSquadron(Squadron):
                             if event != event2 and student != student2:
                                 self.m.addConstr(se[student, event, device, day, wave] +
                                                  se[student2, event2, device, day, wave] <= 1,
-                                                 'If_%s_%s_scheduled_in_%s_on_day_%s_%s_do_not_scheduled_%s_%s'
+                                                 'If_%s_%s_scheduled_in_%s_on_day_%s_%s_do_not_schedule_%s_%s'
                                                  % (student, event, device, day, wave, student2, event2))
 
-        # Schedule each event no more than once
         for student in self.students.values():
+            p = student.partner_student_ID
+            if p in self.students:
+                partner = self.students[p]
+                if student.event_tier(0) == partner.event_tier(0):
+                    for student, event, device, day, wave in x(student, '*', '*', '*', '*'):
+                        self.m.addConstr(se[student, event, device, day, wave] ==
+                                         quicksum(se[partner, event, device, day, wave]
+                                                  for partner, event, device, day, wave in
+                                                  x(partner, event, device, day, wave)),
+                                         'Schedule_partners_%s_and_%s_together_for_%s_in_%s_on_day_%s_%s'
+                                         % (student, partner, event, device, day, wave))
+            # Schedule each event no more than once
             for event, syllabus in student.event_tier(self.max_events * self.days):
                 # event = self.events[e]
                 self.m.addConstr(quicksum(se[student, event, device, day, wave]
@@ -289,7 +344,7 @@ class TrainingSquadron(Squadron):
             rest = Sniv()
             rest.begin = wave1.times[resource_type].end
             rest.end = rest.begin + s.crewRest()
-            s.snivs[0]=rest
+            s.snivs[0] = rest
             if day + 1 in self.schedules:
                 for wave2 in self.schedules[day + 1].waves.values():
                     if not s.available(self.schedules[day + 1].day, wave2):

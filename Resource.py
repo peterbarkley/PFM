@@ -31,18 +31,18 @@ class Resource(CommonEqualityMixin):
 
     # Returns true if the asset is unavailable on day during wave
     # Takes a date day and a Wave object wave
-    def available(self,day,wave):
+    def available(self, day, wave):
         # If the lookup has been performed and recorded, give that
         if day in self._available and wave in self._available[day]:
             return self._available[day][wave]
         else:
-            self._available[day]={}
+            self._available[day] = {}
             # otherwise, loop through snivs looking
             for s in self.snivs:
                 # If any snivs overlap with the wave, resource is unavailable
                 if self.resourceType in wave.times:
                     if self.snivs[s].end > wave.times[self.resourceType].begin and self.snivs[s].begin < wave.times[self.resourceType].end:
-                        self._available[day][wave]=False
+                        self._available[day][wave] = False
                         return False
                 else:
                     if self.snivs[s].end > wave.begin and self.snivs[s].begin < wave.end:

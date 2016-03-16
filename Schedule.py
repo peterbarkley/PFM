@@ -44,6 +44,8 @@ class Schedule(object):
         self.dawn = time(6,0)
         self.dusk = time(20,0)
         self.use_default_waves = True
+        self.hardschedule = {}  # Dictionary like {(student, event): {'instructor': *Instructor,
+        #  'wave':, *Wave, 'device': *Device}}
         for dictionary in initial_data:
             for key in dictionary:
                 setattr(self, key, dictionary[key])
@@ -51,8 +53,9 @@ class Schedule(object):
             setattr(self, key, kwargs[key])
         if self.planes_per_wave:
             self.maxPlanesPerWave = self.planes_per_wave
-        self.id = self.schedule_ID
-        self.waves = {} #Dictionary of waves by id {1:Wave(1),2:Wave(2)}
+        if self.id is None:
+            self.id = self.schedule_ID
+        self.waves = {}  # Dictionary of waves by id {1:Wave(1),2:Wave(2)}
 
 
     def createWaves(self):

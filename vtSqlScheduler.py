@@ -25,9 +25,10 @@ def main():
     vt = TrainingSquadron(config)
     global verbose
     verbose = config['verbose']
+    verboser = False
     load(vt, config)
     solved = vt.writeSchedules()
-    if verbose:
+    if verboser:
         # print vt.__dict__
         for d in vt.devices.values():
             print d.__dict__
@@ -164,7 +165,7 @@ def loadWaves(vt, cur):
                 {'organization_ID': vt.organization_ID})
 
     rows = cur.fetchall()
-    print rows
+    # print rows
     return rows
 
 
@@ -182,7 +183,7 @@ def loadScheduleWaves(vt, cur):
         if not w['wave_ID'] in wave_tags:
             wave_tags[w['wave_ID']] = set()
         wave_tags[w['wave_ID']].add(w['name'])
-        print w['wave_ID'], w['name']
+        # print w['wave_ID'], w['name']
     for s in vt.schedules.values():
         if not s.blank:
             if s.use_default_waves:
@@ -219,12 +220,12 @@ def createWaves(vt, s, waves, wave_tags):
         w.times["Flyer"].begin = start_time
         w.times["Flyer"].end = end_time
         w.schedule = s
-        w.priority = vt.wavePriority(w)
         if wave_entry["student_multiple"] is not None:
             w.studentMultiple = float(wave_entry["student_multiple"])
         if i in wave_tags:
             w.tags = wave_tags[i]
         s.waves[i] = w
+        w.priority = vt.wavePriority(w)
     s.findExclusiveWaves()
 
 
@@ -284,7 +285,7 @@ def loadDevices(vt, cur):
     for row in cur:
         d = Device(row)
         vt.devices[d.device_ID] = d
-        print d.name, d.category
+        # print d.name, d.category
 
     pass
 
@@ -328,8 +329,6 @@ def loadStudents(vt, cur):
                 {'parent': vt.organization_ID})
     for row in cur:
         s = int(row["student_ID"])
-        if verbose:
-            print row, ","
         stud = Student(row, squadron=vt, priority=1)
         vt.students[s] = stud
 
@@ -353,7 +352,7 @@ def loadStudentEvents(vt, cur):
                 {'parent': vt.organization_ID})
     for row in cur:
         # Add progressing events to set for student
-        print "student events", row
+        # print "student events", row
         if row['progressing_event'] == 1:
             stud = vt.students[row['student_ID']]
             e = vt.events[row['event_ID']]
@@ -417,15 +416,15 @@ def loadResourceTags(vt, cur):
     for d in vt.devices.values():
         if d.device_ID in tags:
             d.tags = tags[d.device_ID]
-            print d, tags[d.device_ID]
+            # print d, tags[d.device_ID]
     for i in vt.instructors.values():
         if i.instructor_ID in tags:
             i.tags = tags[i.instructor_ID]
-            print i, tags[i.instructor_ID]
+            # print i, tags[i.instructor_ID]
     for s in vt.students.values():
         if s.student_ID in tags:
             s.tags = tags[s.student_ID]
-            print s, tags[s.student_ID]
+            # print s, tags[s.student_ID]
 
 
 def loadSnivs(vt, cur):

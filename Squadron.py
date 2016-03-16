@@ -24,7 +24,8 @@ from sets import Set
 
 
 class Squadron(object):
-    """Meta object for scheduling program. Including lists of students, instructors, planes, and schedules, as well a syllabus of events for the students"""
+    """Meta object for scheduling program.
+    Including lists of students, instructors, planes, and schedules, as well a syllabus of events for the students"""
 
     def __init__(self, *initial_data, **kwargs):
         self.planes = {} #Dictionary of plane objects like {'106RA': Plane('106RA'), ... }

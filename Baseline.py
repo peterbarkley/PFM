@@ -73,7 +73,7 @@ def main():
                 s.studentSorties.append(ss)
                 print ss
 
-            for i in range(0,4):
+            for i in range(1, 4):
                 ss = StudentSortie()
                 ss.student = Student(student_ID=student_ID)
                 ss.event = vt.events[i]
