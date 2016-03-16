@@ -8,6 +8,7 @@ from Odd import Student
 from gurobipy import *
 from datetime import timedelta
 
+
 class TrainingSquadron(Squadron):
 
     def __init__(self, *initial_data, **kwargs):
@@ -29,6 +30,8 @@ class TrainingSquadron(Squadron):
         return 1
 
     def createVariables(self):
+        if self.verbose:
+            print "Creating variables"
         base_tier = 0
         objective = LinExpr()
         for day, schedule in self.schedules.items():
@@ -42,8 +45,8 @@ class TrainingSquadron(Squadron):
                 for student in self.students.values():
                     if self.verboser:
                         print student
-                    for e, syllabus in student.event_tier(tier):
-                        event = self.events[e]
+                    for event, syllabus in student.event_tier(tier):
+                        # event = self.events[e]
                         if self.verboser:
                             print day, event
                         for device in self.devices.values():
@@ -89,6 +92,8 @@ class TrainingSquadron(Squadron):
         self.m.update()
 
     def constructModel(self):
+        if self.verbose:
+            print "Adding constraints"
         se = self.sevents
         ie = self.ievents
         x = self.x.select
@@ -120,9 +125,13 @@ class TrainingSquadron(Squadron):
                     if device.category in wave.tags:
                         if len(x('*', '*', device, day, wave)) > 0:
                             #  Require sufficient time for all the events to be completed
+                            students_per_instructor = 1
+                            if device.category == 'room':  # Really should come from the event media
+                                students_per_instructor = device.student_capacity
                             self.m.addConstr(quicksum(event.deviceHours() * se[student, event, device, day, wave]
                                                       for student, event, device, day, wave in
-                                                      x('*', '*', device, day, wave)) <= wave.planeHours(),
+                                                      x('*', '*', device, day, wave)) <=
+                                             wave.planeHours() * students_per_instructor,
                                              'All_events_must_fit_within_wave_device_hours_on_day_%s_%s_for_%s'
                                              % (day, wave, device))
                         # Do not exceed device slot instructor capacity
@@ -220,7 +229,7 @@ class TrainingSquadron(Squadron):
                                           in x(student, '*', '*', day, '*')
                                           if event.graded) <= self.max_events,
                                  'No_more_than_%d_graded_events_for_%s_on_day_%s' % (self.max_events, student, day))
-
+            # Only one lesson in a class per wave
             for device in self.devices.values():
                 if device.category == 'room':
                     for student, event, device, day, wave in x('*', '*', device, day, '*'):
@@ -233,18 +242,24 @@ class TrainingSquadron(Squadron):
 
         # Schedule each event no more than once
         for student in self.students.values():
-            for e, syllabus in student.event_tier(self.max_events * self.days):
-                event = self.events[e]
+            for event, syllabus in student.event_tier(self.max_events * self.days):
+                # event = self.events[e]
                 self.m.addConstr(quicksum(se[student, event, device, day, wave]
                                           for student, event, device, day, wave in
                                           x(student, event, '*', '*', '*')) <= 1,
                                  'Schedule_%s_%s_not_more_than_once' % (student, event))
                 # Schedule all new ancestors(e) in a wave ending before w (or to w) if assigning e to w
-                parents = syllabus.parents(e)
+                parents = syllabus.parents(event)
                 if not parents <= student.progressing:
-                    for day, schedule in self.schedules:
+                    for day, schedule in self.schedules.items():
                         for wave in schedule.waves.values():
                             if len(x(student, event, '*', day, wave)) > 0:
+                                for student, event2, device, day2, wave2 in x(student, '*', '*', '*', '*'):
+                                    pass 
+                                    """if event2, syllabus in parents and
+                                    (wave2.times["Student"].end + self.student_turnaround <=
+                                    wave.times["Student"].begin or
+                                    wave2 == wave"""
                                 self.m.addConstr(len(parents - student.progressing) *
                                                  quicksum(se[student, event, device, day, wave]
                                                           for student, event, device, day, wave in
@@ -252,7 +267,7 @@ class TrainingSquadron(Squadron):
                                                  quicksum(se[student, event2, device, day2, wave2]
                                                           for student, event2, device, day2, wave2 in
                                                           x(student, '*', '*', '*', '*')
-                                                          if event2.event_ID in parents and
+                                                          if (event2, syllabus) in parents and
                                                           (wave2.times["Student"].end + self.student_turnaround <=
                                                            wave.times["Student"].begin or
                                                            wave2 == wave)),
@@ -290,11 +305,12 @@ class TrainingSquadron(Squadron):
                 target_tag += '_for_' + str(constraint.object_resource_ID)
             elif constraint.object_resource_type is not None and constraint.object_resource_type in resources:
                 target_tag += '_for_' + str(resources[constraint.object_resource_type].id)
-            if self.verbose:
+            if self.verboser:
                 print target_tag
             #  Not valid if subject resource type does not have the required tag
             if (constraint.subject_resource_type in resources) == constraint.positive:
-                print resources[constraint.subject_resource_type].tags
+                if self.verboser:
+                    print resources[constraint.subject_resource_type].tags
                 if target_tag not in resources[constraint.subject_resource_type].tags:
                     return False
 

@@ -492,7 +492,7 @@ class MaritimeSyllabusTestCase(unittest.TestCase):
         for row in arcs:
             vt.syllabus[1].events[row['child_event']] = vt.events[row['child_event']]
             vt.syllabus[1].events[row['parent_event']] = vt.events[row['parent_event']]
-            vt.syllabus[1].event_arcs += [(row['parent_event'], row['child_event'])]
+            vt.syllabus[1].event_arcs += [(vt.events[row['parent_event']],  vt.events[row['child_event']])]
         vt.students[9] = Odd.Student({u'partner_student_ID': 10, u'student_ID': 9, u'last_flight': None, u'onwing_instructor_ID': 11, u'priority': None})
         vt.students[10] = Odd.Student({u'partner_student_ID': 9, u'student_ID': 10, u'last_flight': None, u'onwing_instructor_ID': 11, u'priority': None})
         vt.students[9].syllabus.add(vt.syllabus[1])
@@ -501,11 +501,12 @@ class MaritimeSyllabusTestCase(unittest.TestCase):
 
     def test_tiers(self):
         vt = self.syllabus_setup()
-        test_tier = {0: set([1, 4]),
-                     1: set([1, 2, 4, 6, 28, 124, 127, 149, 151, 153, 155, 157, 158, 159, 170, 195 ])}
-        for i in range(0,2):
+        s = vt.syllabus[1]
+        test_tier = {0: set([(vt.events[i], s) for i in [1, 4]]),
+                     1: set([(vt.events[i], s) for i in [1, 2, 4, 6, 28, 124, 127, 149, 151, 153, 155, 157, 158, 159, 170, 195 ] ])}
+        for i in range(0, 2):
                 out = vt.students[9].event_tier(i)
-                # print i, out, test_tier[i]
+                print i, out, test_tier[i]
                 self.assertEqual(out, test_tier[i])
 
 

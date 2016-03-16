@@ -61,14 +61,13 @@ def load(vt, config):
         days = config['days']
 
         loadTags(vt, cur)
-        loadSyllabi(vt, cur)
         loadSchedules(vt, cur)
+        loadStudents(vt, cur)
         con.commit()
         loadForecast(vt, cur)
         loadScheduleWaves(vt, cur)
         loadDevices(vt, cur)
         loadInstructors(vt, cur)
-        loadStudents(vt, cur)
         loadResourceTags(vt, cur)
         loadSnivs(vt, cur)
 
@@ -86,17 +85,20 @@ def loadTags(vt, cur):
 def loadSyllabi(vt, cur):
     if verbose:
         print "Loading syllabi"
-    cur.execute("SELECT syllabus.syllabus_ID, `name`, syllabus.organization_ID, syllabus.device_type_ID, `precedence` "
+    cur.execute("SELECT student_syllabus.student_ID, student_syllabus.student_syllabus_ID, "
+                "syllabus.syllabus_ID, `name`, "
+                "syllabus.organization_ID, syllabus.device_type_ID, `precedence` "
                 "FROM `syllabus` LEFT JOIN student_syllabus ON syllabus.syllabus_ID = student_syllabus.syllabus_ID "
                 "LEFT JOIN student ON student.student_ID = student_syllabus.student_ID "
                 "LEFT JOIN hierarchy ON child = student.student_ID "
                 "WHERE student.status = 'active' AND parent = %(parent)s "
                 "AND (student_syllabus.stop > NOW() OR student_syllabus.stop IS NULL) "
-                "AND (hierarchy.stop > NOW() OR hierarchy.stop IS NULL) "
-                "GROUP BY syllabus.syllabus_ID",
+                "AND (hierarchy.stop > NOW() OR hierarchy.stop IS NULL) ",
                 {'parent': vt.organization_ID})
     for row in cur:
-        vt.syllabus[row['syllabus_ID']] = Syllabus(row)
+        if row['syllabus_ID'] not in vt.syllabus:
+            vt.syllabus[row['syllabus_ID']] = Syllabus(row)
+        vt.students[row['student_ID']].student_syllabus_ID = row['student_syllabus_ID']
 
     loadEvents(vt, cur)
 
@@ -249,7 +251,7 @@ def loadEvents(vt, cur):
         if s in vt.syllabus:
             vt.syllabus[s].events[row['parent_event']] = vt.events[row['parent_event']]
             vt.syllabus[s].events[row['child_event']] = vt.events[row['child_event']]
-            vt.syllabus[s].event_arcs += [(row['parent_event'], row['child_event'])]
+            vt.syllabus[s].event_arcs += [(vt.events[row['parent_event']], vt.events[row['child_event']])]
 
     loadConstraints(vt, cur)
     loadEventConstraints(vt, cur)
@@ -331,7 +333,7 @@ def loadStudents(vt, cur):
         stud = Student(row, squadron=vt, priority=1)
         vt.students[s] = stud
 
-
+    loadSyllabi(vt, cur)
     loadStudentSyllabi(vt, cur)
     loadStudentEvents(vt, cur)
 
@@ -340,19 +342,23 @@ def loadStudentEvents(vt, cur):
     cur.execute("SELECT * FROM student_sortie "
                 "LEFT JOIN student ON student.student_ID = student_sortie.student_ID "
                 "LEFT JOIN hierarchy ON student.student_ID = child "
-                "LEFT JOIN student_syllabus ON student_sortie.student_syllabus_ID = student_syllabus.student_syllabus_ID "
+                "LEFT JOIN student_syllabus "
+                "ON student_sortie.student_syllabus_ID = student_syllabus.student_syllabus_ID "
                 "LEFT JOIN sortie ON sortie.sortie_ID = student_sortie.sortie_ID "
+                "LEFT JOIN schedule ON schedule.schedule_ID = student_sortie.schedule_ID "
                 "WHERE student.status = 'active' AND parent = %(parent)s "
                 "AND (hierarchy.stop > NOW() OR hierarchy.stop IS NULL) "
-                "AND sortie.scheduled_land >= hierarchy.start "
-                "AND student_syllabus.outcome IS NULL ",
+                "AND student_syllabus.outcome IS NULL "
+                "AND schedule.published = TRUE",
                 {'parent': vt.organization_ID})
     for row in cur:
         # Add progressing events to set for student
-        if row['progessing_event'] == 1:
-            sd = vt.students[row['student_ID']]
-            e = vt.events.get(row['event_ID'])
-            stud.progressing.add(e)
+        print "student events", row
+        if row['progressing_event'] == 1:
+            stud = vt.students[row['student_ID']]
+            e = vt.events[row['event_ID']]
+            s = vt.syllabus[row['syllabus_ID']]
+            stud.progressing.add((e, s))
 
         # Future work: reduce available plane hours based on scheduled events
 
@@ -367,10 +373,10 @@ def loadStudentEvents(vt, cur):
         # Create crew rest sniv for student
         if row['student_ID'] in vt.students:
             stud = vt.students[row['student_ID']]
-            if end + stud.crewRest >= first_start:
+            if end + stud.crewRest() >= first_start:
                 s = Sniv()
                 s.begin = end
-                s.end = end + stud.crewRest
+                s.end = end + stud.crewRest()
                 stud.snivs[i] = s
 
         # Create crew rest sniv for instructor
@@ -483,17 +489,21 @@ def write(vt, config):
                             print ss.student.id, ss.event.id"""
                         # Add other types of hours as well ...
                         cur.execute("INSERT INTO student_sortie "
-                                    "(schedule_ID, sortie_ID, student_ID, event_ID, sked_flight_hours, sked_inst_hours, device_ID) "
+                                    "(schedule_ID, sortie_ID, student_ID, event_ID, "
+                                    "sked_flight_hours, sked_inst_hours, device_ID, "
+                                    "computer_generated, student_syllabus_ID) "
                                     "VALUES(%(schedule_ID)s, "
                                     "%(sortie_ID)s, "
-                                    "%(student_ID)s,%(event_ID)s,%(sked_flight_hours)s,%(sked_inst_hours)s,%(device_ID)s)",
+                                    "%(student_ID)s,%(event_ID)s,%(sked_flight_hours)s, "
+                                    "%(sked_inst_hours)s,%(device_ID)s, 1, %(stud_syll)s )",
                                     {'schedule_ID': i,
                                     'sortie_ID': sortie_ID,
                                     'student_ID': ss.student.student_ID,
                                     'event_ID': ss.event.event_ID,
                                     'sked_flight_hours': ss.event.flightHours,
                                     'sked_inst_hours': ss.event.instructionalHours,
-                                    'device_ID': sortie.plane.device_ID})
+                                    'device_ID': sortie.plane.device_ID,
+                                    'stud_syll': ss.student.student_syllabus_ID})
                 print "Schedule for %s written to database"%(day)
 
 

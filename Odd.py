@@ -25,13 +25,14 @@ class Student(Flyer):
         self.partner = None #Student object
         self.priority = None
         self.last_flight = None
-        self.syllabus = set() # Dict of syllabus objects the student is enrolled in keyed by precedence value
+        self.syllabus = set() # Dict of syllabus objects the student is enrolled in
         self.completedEvents = set() # set of events objects for each completed event
         self.scheduledEvents = set() # set of events objects for each currently scheduled event
-        self.progressing = set()  # Set of event object that do not need to be scheduled
+        self.progressing = set()  # Set of (event object, syllabus object) tuples that do not need to be scheduled
         self._possibleEvents = {}
         self.onwing_instructor_ID = None
         self.partner_student_ID = None
+        self.student_syllabus_ID = None  # Future Work: this should be across all syllabi
         super(Student, self).__init__(*initial_data, **kwargs)
         self.resourceType = "Student"
         if self.id is None:
@@ -119,7 +120,8 @@ class Student(Flyer):
         else:
             return self.squadron.students.get(self.partner_student_ID)
 
-    # Takes an integer level and returns the events that could be scheduled at that tier given precedence constraints
+    # Takes an integer level and returns the (event, syllabus) tuples
+    # that could be scheduled at that tier given precedence constraints
     def event_tier(self, level):
         tier = set()
         if level > 0:
@@ -128,27 +130,24 @@ class Student(Flyer):
             previous_tier = set()
         for s in self.syllabus:
             old_events = self.progressing | previous_tier
-            new_events = set(s.events.keys()) - old_events
+            new_events = set([(e, s) for e in s.events.values()]) - old_events
             higher_priority_events = set()
             """for t in self.syllabus:
                 if t.precedence > s.precedence:
                     higher_priority_events += set(t.events.keys())
             """
             ungraded = set()
-            for e in new_events:
+            for e, syllabus in new_events:
                 parents = s.parents(e) | higher_priority_events
                 if parents <= old_events:
                     tier.add((e, s))
-                elif not s.events[e].graded:
+                elif not e.graded:
                     ungraded.add(e)
             for e in ungraded:
                 if (s.ancestors(e) | higher_priority_events) <= (old_events | tier | ungraded):
                     tier.add((e, s))
 
         return tier | previous_tier
-
-
-
 
 
 def main():

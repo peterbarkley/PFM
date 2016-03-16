@@ -17,7 +17,7 @@ class StudentSortie(object):
         self.wave = None
 
     def __str__(self):
-        return str(self.student) + '\t' + str(self.event)
+        return str(self.student) + '_' + str(self.event)
 def main():
     pass
 

@@ -56,7 +56,7 @@ class Event(object):
         return self.flightHours > 0
 
     def getDebriefHours(self):
-        return timedelta(hours=self.debrief_hours)
+        return timedelta(hours=float(self.debrief_hours))
 
     #Returns true if this event has no prerequisites and can be scheduled without any previous events completed
     def initialEvent(self):
