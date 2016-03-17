@@ -71,6 +71,7 @@ def load(vt, config):
         loadInstructors(vt, cur)
         loadResourceTags(vt, cur)
         loadSnivs(vt, cur)
+        loadHardSchedule(vt, cur)
 
     finally:
         con.close()
@@ -336,6 +337,48 @@ def loadStudents(vt, cur):
     loadStudentSyllabi(vt, cur)
     loadStudentEvents(vt, cur)
 
+def loadHardSchedule(vt, cur):
+    if verbose:
+        print "Loading hard scheduled events"
+    for schedule in vt.schedules.values():
+        cur.execute("SELECT * FROM student_sortie AS ss LEFT JOIN sortie ON ss.sortie_ID = sortie.sortie_ID LEFT JOIN schedule on schedule.schedule_ID = ss.schedule_ID "
+                    "WHERE ss.schedule_ID = %(schedule_ID)s AND hard_schedule = 1 AND schedule.organization_ID = %(org_ID)s",
+                    {'schedule_ID': schedule.schedule_ID, 'org_ID': vt.organization_ID})
+        for row in cur:
+            instructor = None
+            wave = None
+            device = None
+            student = None
+            if row['instructor_ID'] is not None:
+                instructor = vt.instructors[row['instructor_ID']]
+            if row['wave_ID'] is not None:
+                wave = schedule.waves[row['wave_ID']]
+            if row['device_ID'] is not None:
+                device = vt.devices[row['device_ID']]
+            if (row['student_ID'] is not None) and (row['event_ID'] is not None):
+                student = vt.students[row['student_ID']]
+                event = vt.events[row['event_ID']]
+                schedule.hardschedule[(student, event)] = {'student': student,
+                                                           'event': event,
+                                                           'instructor': instructor,
+                                                           'wave': wave,
+                                                           'device': device,
+                                                           'sortie_ID': row['sortie_ID'],
+                                                           'student_sortie_ID': row['student_sortie_ID']}
+            elif wave is not None:
+                # Sniv instructor
+                if instructor is not None:
+                    i = -1 * row['sortie_ID']
+                    instructor.snivs[i] = wave.times["Instructor"]
+                # Sniv student
+                if student is not None and wave is not None:
+                    i = -1 * row['student_sortie_ID']
+                    student.snivs[i] = wave.times["Student"]
+                # Sniv device
+                if device is not None:
+                    i = -1 * row['student_sortie_ID']
+                    device.snivs[i] = wave.times["Plane"]
+
 
 def loadStudentEvents(vt, cur):
     cur.execute("SELECT * FROM student_sortie "
@@ -367,9 +410,9 @@ def loadStudentEvents(vt, cur):
             e = vt.events[row['event_ID']]
             end += e.getDebriefHours()
         first_start = datetime.combine(vt.schedules[1].day, time())
-        i = -1 * row['student_sortie_ID']
 
         # Create crew rest sniv for student
+        i = -1 * row['student_sortie_ID']
         if row['student_ID'] in vt.students:
             stud = vt.students[row['student_ID']]
             if end + stud.crewRest() >= first_start:
@@ -379,6 +422,7 @@ def loadStudentEvents(vt, cur):
                 stud.snivs[i] = s
 
         # Create crew rest sniv for instructor
+        i = -1 * row['sortie_ID']
         if row['instructor_ID'] in vt.instructors:
             inst = vt.instructors[row['instructor_ID']]
             if end + inst.crewRest >= first_start:
@@ -468,42 +512,53 @@ def write(vt, config):
             if row is not None and not row['published']:
                 i = row['schedule_ID']
                 # Delete old non-hard scheduled entries for sortie and studentsortie
-                cur.execute("DELETE FROM student_sortie WHERE schedule_ID=%(schedule_ID)s", {'schedule_ID': i})
-                cur.execute("DELETE FROM sortie WHERE schedule_ID=%(schedule_ID)s", {'schedule_ID': i})
+                cur.execute("DELETE FROM student_sortie "
+                            "WHERE schedule_ID=%(schedule_ID)s "
+                            "AND (hard_schedule = 0 OR hard_schedule IS NULL)", {'schedule_ID': i})
+                cur.execute("DELETE FROM sortie WHERE sortie_ID IN "
+                            "(SELECT ss.sortie_ID FROM student_sortie AS ss "
+                            "WHERE ss.schedule_ID=%(schedule_ID)s AND "
+                            "(ss.hard_schedule = 0 OR ss.hard_schedule IS NULL))", {'schedule_ID': i})
                 # Write sorties
                 for sortie in schedule.sorties.values():
                     sortie.schedule_ID = i
-                    cur.execute("INSERT INTO sortie(brief, scheduled_takeoff, scheduled_land, instructor_ID, schedule_ID, wave_ID) "
-                                "VALUES(%(brief)s, "
-                                "%(scheduled_takeoff)s, "
-                                "%(scheduled_land)s, "
-                                "%(instructor_ID)s, "
-                                "%(schedule_ID)s,"
-                                "%(wave_ID)s)",
-                                sortie.export())
+                    if sortie.sortie_ID is not None:
+                        query = """UPDATE sortie SET brief=%(brief)s, scheduled_takeoff=%(scheduled_takeoff)s,
+                                scheduled_land=%(scheduled_land)s, instructor_ID=%(instructor_ID)s,
+                                schedule_ID=%(schedule_ID)s, wave_ID=%(wave_ID)s WHERE sortie_ID=%(sortie_ID)s """
+                    else:
+                        query = """INSERT INTO sortie(brief, scheduled_takeoff, scheduled_land, instructor_ID,
+                                schedule_ID, wave_ID) VALUES ( %(brief)s, %(scheduled_takeoff)s, %(scheduled_land)s,
+                                %(instructor_ID)s, %(schedule_ID)s, %(wave_ID)s)"""
+                    cur.execute(query, sortie.export())
                     # Write student sorties
-                    sortie_ID = cur.lastrowid
+                    if sortie.sortie_ID is None:
+                        sortie.sortie_ID = cur.lastrowid
                     for ss in sortie.studentSorties:
-                        """if verbose:
-                            print ss.student.id, ss.event.id"""
+                        if verbose:
+                            print ss.student.id, ss.event.id, sortie.sortie_ID
                         # Add other types of hours as well ...
-                        cur.execute("INSERT INTO student_sortie "
-                                    "(schedule_ID, sortie_ID, student_ID, event_ID, "
-                                    "sked_flight_hours, sked_inst_hours, device_ID, "
-                                    "computer_generated, student_syllabus_ID) "
-                                    "VALUES(%(schedule_ID)s, "
-                                    "%(sortie_ID)s, "
-                                    "%(student_ID)s,%(event_ID)s,%(sked_flight_hours)s, "
-                                    "%(sked_inst_hours)s,%(device_ID)s, 1, %(stud_syll)s )",
-                                    {'schedule_ID': i,
-                                    'sortie_ID': sortie_ID,
+                        if ss.student_sortie_ID is not None:
+                            query = """UPDATE student_sortie SET schedule_ID=%(schedule_ID)s, sortie_ID=%(sortie_ID)s,
+                            student_ID=%(student_ID)s, event_ID=%(event_ID)s, sked_flight_hours=%(sked_flight_hours)s,
+                            sked_inst_hours=%(sked_inst_hours)s, device_ID=%(device_ID)s, computer_generated=1,
+                            student_syllabus_ID=%(stud_syll)s WHERE student_sortie_ID=%(student_sortie_ID)s"""
+                        else:
+                            query = """INSERT INTO student_sortie (schedule_ID, sortie_ID, student_ID, event_ID,
+                            sked_flight_hours, sked_inst_hours, device_ID, computer_generated, student_syllabus_ID)
+                            VALUES( %(schedule_ID)s, %(sortie_ID)s, %(student_ID)s, %(event_ID)s, %(sked_flight_hours)s,
+                            %(sked_inst_hours)s, %(device_ID)s, 1, %(stud_syll)s )"""
+                        cur.execute(query,
+                                    {'student_sortie_ID': ss.student_sortie_ID,
+                                    'schedule_ID': i,
+                                    'sortie_ID': sortie.sortie_ID,
                                     'student_ID': ss.student.student_ID,
                                     'event_ID': ss.event.event_ID,
                                     'sked_flight_hours': ss.event.flightHours,
                                     'sked_inst_hours': ss.event.instructionalHours,
                                     'device_ID': sortie.plane.device_ID,
                                     'stud_syll': ss.student.student_syllabus_ID})
-                print "Schedule for %s written to database"%(day)
+                print "Schedule for %s written to database" % day
 
 
     finally:

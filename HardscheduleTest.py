@@ -7,8 +7,7 @@ template = {'instructor': None,
             'device': None,}
 
 class HardscheduleTestCase(unittest.TestCase):
-
-
+    """Should be used with vt_test_sims.sql"""
 
 
     def hardschedule_setup(self):
@@ -47,6 +46,7 @@ class HardscheduleTestCase(unittest.TestCase):
         for student, event, device, day, wave in vt.x.select(student, event, '*', day, '*'):
             if vt.sevents[student, event, device, day, wave].x and vt.ievents[instructor, device, day, wave].x:
                 together = True
+                break
         self.assertTrue(together)
 
     def test_student_event_day_wave(self):
@@ -65,18 +65,73 @@ class HardscheduleTestCase(unittest.TestCase):
         for student, event, device, day, wave in vt.x.select(student, event, '*', day, wave):
             if vt.sevents[student, event, device, day, wave].x:
                 together = True
+                break
         self.assertTrue(together)
 
-    """def test_student_event_day_instructor_wave(self):
-        self.assertEqual(True, False)
+    def test_student_event_day_instructor_wave(self):
+        vt = self.hardschedule_setup()
+        student = vt.students[9]
+        event = vt.events[173]
+        day = 2
+        schedule = vt.schedules[day]
+        wave = schedule.waves[17]
+        instructor = vt.instructors[18]
+        instructor.priority = 2  # This makes the instructor less preferable
+        t = {'instructor': instructor,
+             'wave': wave,
+             'device': None,}
+        schedule.hardschedule[(student, event)] = t
+        vt.writeSchedules()
+        together = False
+        for student, event, device, day, wave in vt.x.select(student, event, '*', day, wave):
+            if vt.sevents[student, event, device, day, wave].x and vt.ievents[instructor, device, day, wave].x:
+                together = True
+                break
+        self.assertTrue(together)
 
     def test_student_event_day_instructor_wave_device(self):
-        self.assertEqual(True, False)
+        vt = self.hardschedule_setup()
+        student = vt.students[9]
+        event = vt.events[173]
+        day = 2
+        schedule = vt.schedules[day]
+        wave = schedule.waves[17]
+        instructor = vt.instructors[18]
+        instructor.priority = 2  # This makes the instructor less preferable
+        device = vt.devices[13]
+        t = {'instructor': instructor,
+             'wave': wave,
+             'device': device,}
+        schedule.hardschedule[(student, event)] = t
+        vt.writeSchedules()
+        together = False
+        if vt.sevents[student, event, device, day, wave].x and vt.ievents[instructor, device, day, wave].x:
+            together = True
+        self.assertTrue(together)
 
     def test_student_event_day_instructor_device(self):
-        self.assertEqual(True, False)
+        vt = self.hardschedule_setup()
+        student = vt.students[9]
+        event = vt.events[173]
+        day = 2
+        schedule = vt.schedules[day]
+        wave = schedule.waves[17]
+        instructor = vt.instructors[18]
+        instructor.priority = 2  # This makes the instructor less preferable
+        device = vt.devices[13]
+        t = {'instructor': instructor,
+             'wave': None,
+             'device': device,}
+        schedule.hardschedule[(student, event)] = t
+        vt.writeSchedules()
+        together = False
+        for student, event, device, day, wave in vt.x.select(student, event, device, day, '*'):
+            if vt.sevents[student, event, device, day, wave].x and vt.ievents[instructor, device, day, wave].x:
+                together = True
+                break
+        self.assertTrue(together)
 
-    def test_day_instructor_wave_device(self):
+    """def test_day_instructor_wave_device(self):
         self.assertEqual(True, False)
 
     def test_device_day(self):

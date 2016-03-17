@@ -105,8 +105,6 @@ class TrainingSquadron(Squadron):
                             self.ievents[instructor, device, day, wave] = self.m.addVar(vtype=GRB.BINARY,
                                                                                name=n)
                             prefCoefficient = 1.0  # inst.getPreference(d,w)
-                            if self.militaryPreference and instructor.paid:
-                                prefCoefficient = 0.1 * prefCoefficient
                             objective.add(device.getPriority(wave) *
                                           schedule.priority *
                                           instructor.getPreference(day, wave) *
@@ -378,16 +376,22 @@ class TrainingSquadron(Squadron):
         for (instructor, device, day, wave) in self.y:
             if self.ievents[instructor, device, day, wave].x:
                 sortie = Sortie.Sortie()
-                sortie.instructor = instructor #Instructor object
-                sortie.plane = device #Plane object
-                sortie.wave = wave #Wave ojbect
+                sortie.instructor = instructor  # Instructor object
+                sortie.plane = device  # Plane object
+                sortie.wave = wave  # Wave object
                 sortie.brief = wave.times["Flyer"].begin
                 sortie.takeoff = wave.times["Plane"].begin
                 sortie.land = wave.times["Plane"].end
                 self.schedules[day].sorties[(device, wave)] = sortie
         for (student, event, device, day, wave) in self.x:
             if self.sevents[student, event, device, day, wave].x:
-                ss = StudentSortie.StudentSortie()
-                ss.student = student
-                ss.event = event
-                self.schedules[day].sorties[(device, wave)].studentSorties.append(ss)
+                schedule = self.schedules[day]
+                sortie = schedule.sorties[(device, wave)]
+                if (student, event) in schedule.hardschedule:
+                    ss = StudentSortie.StudentSortie(schedule.hardschedule[(student, event)])
+                    sortie.sortie_ID = schedule.hardschedule[(student, event)]['sortie_ID']
+                else:
+                    ss = StudentSortie.StudentSortie()
+                    ss.student = student
+                    ss.event = event
+                sortie.studentSorties.append(ss)

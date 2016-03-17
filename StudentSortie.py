@@ -11,10 +11,16 @@
 
 class StudentSortie(object):
     """Represents a scheduled event for a student. Has an event associated with it and a student"""
-    def __init__(self, student = None, event = None):
-        self.student = student # Student object
-        self.event = event
+    def __init__(self, *initial_data, **kwargs):
+        self.student = None # Student object
+        self.event = None
         self.wave = None
+        self.student_sortie_ID = None
+        for dictionary in initial_data:
+            for key in dictionary:
+                setattr(self, key, dictionary[key])
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
 
     def __str__(self):
         return str(self.student) + '_' + str(self.event)

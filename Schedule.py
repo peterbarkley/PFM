@@ -63,7 +63,7 @@ class Schedule(object):
         _begin = datetime.combine(self.day,self.firstBrief) + self.briefLength
         for i in range(1,self.waveNumber+1):
             _end = _begin + self.waveLength
-            w=Wave(i)
+            w = Wave(i)
             w.begin = _begin
             w.end = _end
             w.schedule = self

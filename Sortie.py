@@ -25,6 +25,7 @@ class Sortie(object):
         self.planeType = None
         self.wave = None #Wave ojbect
         self.schedule_ID = None
+        self.sortie_ID = None
 
     def __str__(self):
         header = str(self.brief) + '\t' + str(self.takeoff) + '\t' + str(self.land) + '\t' + str(self.plane)
@@ -47,12 +48,13 @@ class Sortie(object):
 
     def export(self):
         return {'brief': self.brief,
-             'scheduled_takeoff': self.takeoff,
-             'scheduled_land': self.land,
-             'instructor_ID': self.instructor.instructor_ID,
-             'schedule_ID': self.schedule_ID,
-             'wave_ID': self.wave.id
-            }
+                'scheduled_takeoff': self.takeoff,
+                'scheduled_land': self.land,
+                'instructor_ID': self.instructor.instructor_ID,
+                'schedule_ID': self.schedule_ID,
+                'wave_ID': self.wave.id,
+                'sortie_ID': self.sortie_ID
+                }
 
     def feasible(self):
 
