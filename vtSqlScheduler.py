@@ -15,6 +15,7 @@ from Wave import Wave
 from Syllabus import Syllabus
 from Constraint import Constraint
 from Tag import Tag
+import Airfield
 
 verbose = True
 
@@ -61,6 +62,7 @@ def load(vt, config):
         cur = con.cursor(dictionary=True)
         days = config['days']
 
+        loadAirfield(vt, cur)
         loadTags(vt, cur)
         loadSchedules(vt, cur)
         loadStudents(vt, cur)
@@ -76,6 +78,15 @@ def load(vt, config):
     finally:
         con.close()
 
+def loadAirfield(vt, cur):
+    if verbose:
+        print "Loading organization airfield"
+    cur.execute("""SELECT * FROM airfield LEFT JOIN resource ON resource.airfield_ID = airfield.airfield_ID
+    WHERE resource.resource_ID = %(org_ID)s LIMIT 1""", {'org_ID': vt.organization_ID})
+    row = cur.fetchone()
+    if row is not None:
+        airfield = Airfield.Airfield(row)
+        vt.airfield = airfield
 
 def loadTags(vt, cur):
     if verbose:
@@ -125,9 +136,12 @@ def loadSchedules(vt, cur):
         s = Schedule(row)
         s.flyDay = i
         s.priority = i ** (-0.5)
+        sun = vt.airfield.getSun(date=s.day, local=True)
+        s.dawn = sun['dawn']
+        s.dusk = sun['dusk']
         if verbose:
-            print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %s' % \
-                  (s.schedule_ID, s.flyDay, s.day, s.priority)
+            print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %s, dawn %s, dusk %s' % \
+                  (s.schedule_ID, s.flyDay, s.day, s.priority, s.dawn, s.dusk)
         vt.schedules[i] = s
         d = row['day'] + timedelta(days=1)
         cur.execute("SELECT * FROM schedule "
@@ -153,8 +167,17 @@ def insertSchedule(vt, d, cur):
 
 
 def loadForecast(vt, cur):
-    pass
-
+    if verbose:
+        print "Loading forecast"
+    cur.execute("""SELECT forecast.begin, forecast.end, ft.value, tag.name FROM forecast_tag AS ft LEFT JOIN forecast ON ft.forecast_ID = forecast.forecast_ID
+    LEFT JOIN tag ON tag.tag_ID = ft.tag_ID WHERE ft.organization_ID = %(organization_ID)s""",
+                {'organization_ID': vt.organization_ID})
+    for row in cur:
+        vt.forecasts.append({'begin': row['begin'],
+                             'end': row['end'],
+                             'probability': row['value'],
+                             'tag': row['name']})
+    print vt.forecasts
 
 def loadWaves(vt, cur):
     if verbose:
@@ -226,7 +249,6 @@ def createWaves(vt, s, waves, wave_tags):
         if i in wave_tags:
             w.tags = wave_tags[i]
         s.waves[i] = w
-        w.priority = vt.wavePriority(w)
     s.findExclusiveWaves()
 
 
@@ -535,8 +557,6 @@ def write(vt, config):
                     if sortie.sortie_ID is None:
                         sortie.sortie_ID = cur.lastrowid
                     for ss in sortie.studentSorties:
-                        if verbose:
-                            print ss.student.id, ss.event.id, sortie.sortie_ID
                         # Add other types of hours as well ...
                         if ss.student_sortie_ID is not None:
                             query = """UPDATE student_sortie SET schedule_ID=%(schedule_ID)s, sortie_ID=%(sortie_ID)s,

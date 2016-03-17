@@ -1,4 +1,4 @@
-
+from astral import Location
 
 
 class Airfield(object):
@@ -21,5 +21,4 @@ class Airfield(object):
 
     # Needs date=datetime.date() and local=Boolean
     def getSun(self, **kwargs):
-        from astral import Location
         return Location((self.identifier, None, self.latitude, self.longitude, self.time_zone, self.elevation)).sun(**kwargs)

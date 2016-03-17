@@ -23,13 +23,20 @@ class TrainingSquadron(Squadron):
         self.slots = tuplelist()
         self.verboser = False
         self.student_turnaround = timedelta(hours=1)
+        self.airfield = None
         super(TrainingSquadron, self).__init__(*initial_data, **kwargs)
 
     # Returns the min priority value across forecasts that overlap with w
-    def wavePriority(self, w):
+    def wavePriority(self, wave, event):
         priority = 1.0
-        if "room" in w.tags:
+        if "room" in wave.tags:
             priority = 0.5
+        elif event.device_category == 'aircraft':
+            for forecast in self.forecasts:
+                if (forecast['begin'] <= wave.times["Plane"].end and
+                        forecast['end'] >= wave.times["Plane"].begin and
+                        forecast['tag'] == event.stage):
+                    priority = min(priority, forecast['probability'])
         return priority
 
     def createVariables(self):
@@ -86,7 +93,7 @@ class TrainingSquadron(Squadron):
                                     self.sevents[student, event, device, day, wave] = self.m.addVar(vtype=GRB.BINARY,
                                                                                                     name=n)
                                     objective.add(schedule.priority *
-                                                  wave.priority *
+                                                  self.wavePriority(wave, event) *
                                                   student.getPriority() *
                                                   self.sevents[(student, event, device, day, wave)])
 
