@@ -42,6 +42,9 @@ class Event(object):
         self.rules = []
         self.graded = True
         self.constraints = []
+        self.min_night_hours = 0.0
+        self.min_day_hours = 0.0
+        self.est_night_hours = 0.0
         for dictionary in initial_data:
             for key in dictionary:
                 setattr(self, key, dictionary[key])

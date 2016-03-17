@@ -61,41 +61,44 @@ class TrainingSquadron(Squadron):
                 for student in self.students.values():
                     if self.verboser:
                         print student
-                    for event, syllabus in student.event_tier(tier):
-                        # event = self.events[e]
-                        if self.verboser:
-                            print day, event
-                        acceptable = True
-                        if ((student, event) in schedule.hardschedule and
-                                (schedule.hardschedule[(student, event)]['wave'] is not None) and
-                                wave != schedule.hardschedule[(student, event)]['wave']):
-                            acceptable = False
-
-                        if acceptable and (event.device_category in wave.tags):
+                    if student.available(schedule.day, wave):
+                        for event, syllabus in student.event_tier(tier):
+                            # event = self.events[e]
+                            if self.verboser:
+                                print day, event
+                            acceptable = True
                             if ((student, event) in schedule.hardschedule and
-                                    (schedule.hardschedule[(student, event)]['device'] is not None)):
-                                devices = [schedule.hardschedule[(student, event)]['device']]
-                            else:
-                                devices = self.devices.values()
-                            for device in devices:
-                                if self.verboser:
-                                    n = '%s_%s_%s_day_%s_%s' % (student, event, device, day, wave)
-                                    print n
-                                    print device, device.tags, student.tags, \
-                                        device.category, event.device_category, wave.tags
-                                # Future work: filter for device availability
-                                # Future work: filter for wave matching event constraints (night vs day)
-                                if (device.tags <= student.tags and
-                                        device.category == event.device_category and
-                                        device.category in wave.tags):
-                                    self.x += [(student, event, device, day, wave)]
-                                    n = '%s_%s_%s_day_%s_%s' % (student, event, device, day, wave)
-                                    self.sevents[student, event, device, day, wave] = self.m.addVar(vtype=GRB.BINARY,
-                                                                                                    name=n)
-                                    objective.add(schedule.priority *
-                                                  self.wavePriority(wave, event) *
-                                                  student.getPriority() *
-                                                  self.sevents[(student, event, device, day, wave)])
+                                    (schedule.hardschedule[(student, event)]['wave'] is not None) and
+                                    wave != schedule.hardschedule[(student, event)]['wave']):
+                                acceptable = False
+
+                            if (acceptable and (event.device_category in wave.tags) and
+                                    wave.night_time >= event.min_night_hours and
+                                    wave.day_time >= event.min_day_hours):
+                                if ((student, event) in schedule.hardschedule and
+                                        (schedule.hardschedule[(student, event)]['device'] is not None)):
+                                    devices = [schedule.hardschedule[(student, event)]['device']]
+                                else:
+                                    devices = self.devices.values()
+                                for device in devices:
+                                    if self.verboser:
+                                        n = '%s_%s_%s_day_%s_%s' % (student, event, device, day, wave)
+                                        print n
+                                        print device, device.tags, student.tags, \
+                                            device.category, event.device_category, wave.tags
+                                    # Future work: filter for device availability
+                                    # Future work: filter for wave matching event constraints (night vs day)
+                                    if (device.tags <= student.tags and
+                                            device.category == event.device_category and
+                                            device.category in wave.tags):
+                                        self.x += [(student, event, device, day, wave)]
+                                        n = '%s_%s_%s_day_%s_%s' % (student, event, device, day, wave)
+                                        self.sevents[student, event, device, day, wave] = self.m.addVar(vtype=GRB.BINARY,
+                                                                                                        name=n)
+                                        objective.add(schedule.priority *
+                                                      self.wavePriority(wave, event) *
+                                                      student.getPriority() *
+                                                      self.sevents[(student, event, device, day, wave)])
 
                 # Loop over days, waves, instructors and devices creating instructor decision variables
                 for instructor in self.instructors.values():
@@ -131,9 +134,9 @@ class TrainingSquadron(Squadron):
         y = self.y.select
         # print self.y.select('*','*','*','*')
 
-        # Hard scheduled events constraint
 
         # Formation flight constraint
+
         for student, event, device, day, wave in x('*', '*', '*', '*', '*'):
             #  Assign an eligible instructor for each student event
             if ((student, event) not in self.schedules[day].hardschedule) or \
@@ -145,6 +148,7 @@ class TrainingSquadron(Squadron):
                                           if self.eligible(event, instructor=instructor, student=student, )),
                                  'Schedule_eligible_instructor_for_%s_%s_%s_day_%s_%s' %
                                  (student, event, device, day, wave))
+            # Hard scheduled instructor constraint
             else:
                 instructor = self.schedules[day].hardschedule[(student, event)]['instructor']
                 self.m.addConstr(se[student, event, device, day, wave] <=
@@ -183,6 +187,21 @@ class TrainingSquadron(Squadron):
                                              wave.planeHours() * students_per_instructor,
                                              'All_events_must_fit_within_wave_device_hours_on_day_%s_%s_for_%s'
                                              % (day, wave, device))
+                            if device.category == 'aircraft':  # Really should come from the event media
+                                #  Require sufficient night time for all the events to be completed
+                                self.m.addConstr(quicksum(event.min_night_hours * se[student, event, device, day, wave]
+                                                          for student, event, device, day, wave in
+                                                          x('*', '*', device, day, wave)) <=
+                                                 wave.night_time,
+                                                 'Event_min_night_hours_less_than_wave_night_hours_on_day_%s_%s_for_%s'
+                                                 % (day, wave, device))
+                                #  Require sufficient day time for all the events to be completed
+                                self.m.addConstr(quicksum(event.min_day_hours * se[student, event, device, day, wave]
+                                                          for student, event, device, day, wave in
+                                                          x('*', '*', device, day, wave)) <=
+                                                 wave.day_time,
+                                                 'Event_min_day_hours_less_than_wave_night_hours_on_day_%s_%s_for_%s'
+                                                 % (day, wave, device))
                         # Do not exceed device slot instructor capacity
                         self.m.addConstr(quicksum(ie[instructor, device, day, wave]
                                           for instructor, device, day, wave

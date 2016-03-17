@@ -44,6 +44,7 @@ class Schedule(object):
         self.dawn = time(6,0)
         self.dusk = time(20,0)
         self.use_default_waves = True
+        self.sun = None
         self.hardschedule = {}  # Dictionary like {(student, event): {'instructor': *Instructor,
         #  'wave':, *Wave, 'device': *Device}}
         for dictionary in initial_data:

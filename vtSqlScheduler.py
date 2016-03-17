@@ -136,9 +136,9 @@ def loadSchedules(vt, cur):
         s = Schedule(row)
         s.flyDay = i
         s.priority = i ** (-0.5)
-        sun = vt.airfield.getSun(date=s.day, local=True)
-        s.dawn = sun['dawn']
-        s.dusk = sun['dusk']
+        s.sun = vt.airfield.getSun(date=s.day, local=True)
+        s.dawn = s.sun['dawn']
+        s.dusk = s.sun['dusk']
         if verbose:
             print 'Computing schedule for schedule ID %d, flight day %d, day %s, with priority %s, dawn %s, dusk %s' % \
                   (s.schedule_ID, s.flyDay, s.day, s.priority, s.dawn, s.dusk)
@@ -248,6 +248,16 @@ def createWaves(vt, s, waves, wave_tags):
             w.studentMultiple = float(wave_entry["student_multiple"])
         if i in wave_tags:
             w.tags = wave_tags[i]
+        end = w.times["Plane"].end.replace(tzinfo=s.dusk.tzinfo)
+        begin = w.times["Plane"].begin.replace(tzinfo=s.dusk.tzinfo)
+        if s.dawn >= begin:
+            night_time = s.dawn - begin
+            w.night_time += night_time.seconds/3600.0
+        if s.dusk <= end:
+            night_time = end - s.dusk
+            w.night_time += night_time.seconds/3600.0
+        w.day_time = w.planeHours() - w.night_time
+        print w, w.night_time, w.day_time
         s.waves[i] = w
     s.findExclusiveWaves()
 

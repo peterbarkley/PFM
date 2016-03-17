@@ -27,6 +27,8 @@ class Wave(object):
         self.times["Instructor"] = self.times["Flyer"]
         self.studentMultiple = 1 #Allows double or triple waves
         self.schedule = None
+        self.night_time = 0.0  # Hours of night in wave (float)
+        self.day_time = 0.0  # Hours of day in wave (float)
         self._canFollow = []
         """ self._canFollow includes itself, so for an out-and-in the student can have
                                   sequential events that can follow immediately both in the same wave"""
@@ -34,6 +36,7 @@ class Wave(object):
         self.crewRestHours = 12 #Max time between first brief and last debrief
         self.tags = set()
         self._tier = None
+        self.fudge = 0.0
 
     def __str__(self):
         return "Wave_" + str(self.id)
@@ -58,11 +61,10 @@ class Wave(object):
 
     def planeHours(self):
         diff = self.times["Plane"].end - self.times["Plane"].begin
-        fudge = 0
         h = diff.seconds/3600.0
         """if h >= 2.0:
             fudge = 0.2"""
-        return h - fudge
+        return h - self.fudge
 
     # Future work: fix canImmediatelyFollow to return min(tier + 1) across any events it can follow else 0
     def tier(self):
