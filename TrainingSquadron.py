@@ -24,6 +24,7 @@ class TrainingSquadron(Squadron):
         self.verboser = False
         self.student_turnaround = timedelta(hours=1)
         self.airfield = None
+        self._crewday_pairs = {}
         super(TrainingSquadron, self).__init__(*initial_data, **kwargs)
 
     # Returns the min priority value across forecasts that overlap with w
@@ -105,20 +106,21 @@ class TrainingSquadron(Squadron):
                     # Future work: filter for instructor availability
                     if self.verboser:
                         print instructor
-                    for device in self.devices.values():
-                        if self.verboser:
-                            print device, device.tags, instructor.tags
-                        if device.tags <= instructor.tags and device.category in wave.tags:  # Future work: filter for device availability
-                            n = '%s_%s_day_%s_%s' % (instructor, device, day, wave)
-                            # print n
-                            self.y += [(instructor, device, day, wave)]
-                            self.ievents[instructor, device, day, wave] = self.m.addVar(vtype=GRB.BINARY,
-                                                                               name=n)
-                            prefCoefficient = 1.0  # inst.getPreference(d,w)
-                            objective.add(device.getPriority(wave) *
-                                          schedule.priority *
-                                          instructor.getPreference(day, wave) *
-                                          self.ievents[instructor, device, day, wave])
+                    if instructor.available(schedule.day, wave):
+                        for device in self.devices.values():
+                            if self.verboser:
+                                print device, device.tags, instructor.tags
+                            if device.tags <= instructor.tags and device.category in wave.tags:  # Future work: filter for device availability
+                                n = '%s_%s_day_%s_%s' % (instructor, device, day, wave)
+                                # print n
+                                self.y += [(instructor, device, day, wave)]
+                                self.ievents[instructor, device, day, wave] = self.m.addVar(vtype=GRB.BINARY,
+                                                                                   name=n)
+                                prefCoefficient = 1.0  # inst.getPreference(d,w)
+                                objective.add(device.getPriority(wave) *
+                                              schedule.priority *
+                                              instructor.getPreference(day, wave) *
+                                              self.ievents[instructor, device, day, wave])
 
             base_tier += self.max_events
         self.m.update()
@@ -137,7 +139,7 @@ class TrainingSquadron(Squadron):
 
         # Formation flight constraint
 
-        for student, event, device, day, wave in x('*', '*', '*', '*', '*'):
+        for student, event, device, day, wave in se:
             #  Assign an eligible instructor for each student event
             if ((student, event) not in self.schedules[day].hardschedule) or \
                     (self.schedules[day].hardschedule[(student, event)]['instructor'] is None):
@@ -277,6 +279,17 @@ class TrainingSquadron(Squadron):
                                                   in x(student, '*', '*', day + 1, early_wave)) <= 1,
                                          'Do_not_schedule_%s_for_%s_on_day_%s_and_%s_the_next_day_because_of_crewrest' %
                                          (student, day, late_wave, early_wave))
+                # Do not exceed student crew day
+                for (early_wave, late_wave) in self.crewday_pairs(day, 'Student'):
+                    for student in self.students.values():
+                        self.m.addConstr(quicksum(se[student, event, device, day, late_wave]
+                                                  for student, event, device, day, late_wave
+                                                  in x(student, '*', '*', day, late_wave)) +
+                                         quicksum(se[student, event, device, day_two, early_wave]
+                                                  for student, event, device, day_two, early_wave
+                                                  in x(student, '*', '*', day, early_wave)) <= 1,
+                                         'Do_not_schedule_%s_for_%s_and_%s_on_day_%s_because_of_crewday' %
+                                         (student, day, late_wave, early_wave))
 
                 # Do not exceed instructor crew rest
                 for (late_wave, early_wave) in self.crewrest_pairs(day, 'Instructor'):
@@ -288,6 +301,17 @@ class TrainingSquadron(Squadron):
                                                   for instructor, device, day_two, early_wave
                                                   in y(instructor, '*', day + 1, early_wave)) <= 1,
                                          'Do_not_schedule_%s_for_%s_on_day_%s_and_%s_the_next_day_because_of_crewrest' %
+                                         (instructor, day, late_wave, early_wave))
+                # Do not exceed instructor crew day
+                for (early_wave, late_wave) in self.crewday_pairs(day, 'Instructor'):
+                    for instructor in self.instructors.values():
+                        self.m.addConstr(quicksum(ie[instructor, device, day, late_wave]
+                                                  for instructor, device, day, late_wave
+                                                  in y(instructor, '*', day, late_wave)) +
+                                         quicksum(ie[instructor, device, day_two, early_wave]
+                                                  for instructor, device, day_two, early_wave
+                                                  in y(instructor, '*', day, early_wave)) <= 1,
+                                         'Do_not_schedule_%s_for_%s_and_%s_on_day_%s_because_of_crewday' %
                                          (instructor, day, late_wave, early_wave))
 
             # Do not exceed max graded events for a student
@@ -309,6 +333,7 @@ class TrainingSquadron(Squadron):
                                                  % (student, event, device, day, wave, student2, event2))
 
         for student in self.students.values():
+            # Schedule partners together
             p = student.partner_student_ID
             if p in self.students:
                 partner = self.students[p]
@@ -375,6 +400,21 @@ class TrainingSquadron(Squadron):
                         pairs.append((wave1, wave2))
         return pairs
 
+    # Returns tuples of wave objects (early, late) that cannot both be scheduled within crewday
+    def crewday_pairs(self, day, resource_type):
+        crewday = 12
+        if (day, resource_type) in self._crewday_pairs:
+            return self._crewday_pairs[day, resource_type]
+
+        pairs = []
+
+        for wave1 in self.schedules[day].waves.values():
+                for wave2 in self.schedules[day].waves.values():
+                    if wave2.times[resource_type].end - wave1.times[resource_type].begin > timedelta(hours=crewday):
+                        pairs.append((wave1, wave2))
+        self._crewday_pairs[day, resource_type] = pairs
+        return pairs
+
     def eligible(self, event, **resources):
         for constraint in event.constraints:
             #  Future work: implement other verbs beside 'is'
@@ -385,11 +425,11 @@ class TrainingSquadron(Squadron):
             elif constraint.object_resource_type is not None and constraint.object_resource_type in resources:
                 target_tag += '_for_' + str(resources[constraint.object_resource_type].id)
             if self.verboser:
-                print target_tag
+                print event, target_tag, constraint.__dict__, resources
             #  Not valid if subject resource type does not have the required tag
             if (constraint.subject_resource_type in resources) == constraint.positive:
                 if self.verboser:
-                    print resources[constraint.subject_resource_type].tags
+                    print resources[constraint.subject_resource_type], resources[constraint.subject_resource_type].tags
                 if target_tag not in resources[constraint.subject_resource_type].tags:
                     return False
 

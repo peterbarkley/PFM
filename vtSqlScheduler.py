@@ -257,7 +257,6 @@ def createWaves(vt, s, waves, wave_tags):
             night_time = end - s.dusk
             w.night_time += night_time.seconds/3600.0
         w.day_time = w.planeHours() - w.night_time
-        print w, w.night_time, w.day_time
         s.waves[i] = w
     s.findExclusiveWaves()
 
@@ -295,6 +294,7 @@ def loadConstraints(vt, cur):
     cur.execute("SELECT * FROM `constraint` WHERE 1 ")
     for row in cur:
         vt.constraints[row['constraint_ID']] = Constraint(row)
+
 
 
 def loadEventConstraints(vt, cur):
@@ -466,29 +466,28 @@ def loadStudentEvents(vt, cur):
 
 # Loads tags for devices, students and instructors
 def loadResourceTags(vt, cur):
-    cur.execute("SELECT resource_ID, t.tag_ID, expiration, object_resource_ID, object_tag_ID, t.name as tag_name, "
-                "t.length, otag.name as object_tag_name "
-                "FROM resource_tag LEFT JOIN tag AS t ON resource_tag.tag_ID = t.tag_ID "
-                "LEFT JOIN tag AS otag ON resource_tag.object_tag_ID = otag.tag_ID "
-                "LEFT JOIN hierarchy ON resource_tag.resource_ID = child "
-                "WHERE parent = %(parent)s  AND (stop > NOW() OR stop IS NULL) "
-                "AND (expiration > NOW() OR expiration IS NULL) ",
+    cur.execute(
+        """SELECT resource_tag_ID, resource_tag.resource_ID, t.tag_ID, expiration, object_resource_ID,
+    object_tag_ID, t.name as tag_name, t.length, otag.name as object_tag_name
+    FROM resource_tag LEFT JOIN tag AS t ON resource_tag.tag_ID = t.tag_ID
+    LEFT JOIN tag AS otag ON resource_tag.object_tag_ID = otag.tag_ID
+    LEFT JOIN hierarchy ON resource_tag.resource_ID = child
+    WHERE parent = %(parent)s  AND (stop > NOW() OR stop IS NULL)
+    AND (expiration > NOW() OR expiration IS NULL) """,
                 {'parent': vt.organization_ID})
     tags = {}
     for row in cur:
         t = row['tag_name']
-        i = row['tag_ID']
+        i = row['resource_tag_ID']
         if row['object_resource_ID'] is not None:
-            i += row['object_resource_ID']
             t += '_for_' + str(row['object_resource_ID'])
         if row['object_tag_ID'] is not None:
-            i += row['object_tag_ID']
-            t += '_for_' + row['object_tag_name']  #  Should return tag name
+            t += '_for_' + row['object_tag_name']  # Should return tag name
         if row['resource_ID'] not in tags:
             tags[row['resource_ID']] = set()
-        if i not in vt.tags:
-            vt.tags[i] = t  # Tag(row)
-        tags[row['resource_ID']].add(vt.tags[i])
+        """if i not in vt.tags:
+            vt.tags[i] = t  # Tag(row)"""
+        tags[row['resource_ID']].add(t)  # (vt.tags[i])
     for d in vt.devices.values():
         if d.device_ID in tags:
             d.tags = tags[d.device_ID]
