@@ -11,8 +11,7 @@
 
 from gurobipy import tuplelist
 from Flyer import Flyer
-from datetime import timedelta
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 
 class Student(Flyer):
@@ -33,6 +32,8 @@ class Student(Flyer):
         self.onwing_instructor_ID = None
         self.partner_student_ID = None
         self.student_syllabus_ID = None  # Future Work: this should be across all syllabi
+        self.probability = 0.8  # Probability of a single event being successful
+        self.training_end_date = None  # Date when training should be finished
         super(Student, self).__init__(*initial_data, **kwargs)
         self.resourceType = "Student"
         if self.id is None:
@@ -102,6 +103,25 @@ class Student(Flyer):
                     p += 5 + d
             self.priority = p/2.0
         return self.priority
+
+    def countRemainingEvents(self):
+        # Count remaining events
+        remaining_events = set()
+        for syllabus in self.syllabus:
+            remaining_events = (set([(e, syllabus) for e in syllabus.events.values()]) - self.progressing) | remaining_events
+        return len(remaining_events)
+
+    def getBetterPri(self):
+        # Find days remaining
+        remaining_days = self.training_end_date - date.today()
+        event_priority = 1.01**(self.countRemainingEvents() - remaining_days.days)
+        self.priority = event_priority
+        if self.last_flight is not None:
+            recency = date.today() - self.last_flight
+            recency_bonus = recency.days/3
+            self.priority += recency_bonus
+        return self.priority
+
 
     def getNextEvent(self):
         if self.nextEvent is None and self.findPossible(1, True):

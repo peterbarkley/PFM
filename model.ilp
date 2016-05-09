@@ -1,0 +1,6 @@
+Maximize
+ 
+Subject To
+ Require_student_512_to_be_scheduled: >= 1
+Bounds
+End

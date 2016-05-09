@@ -16,6 +16,7 @@ class StudentSortie(object):
         self.event = None
         self.wave = None
         self.student_sortie_ID = None
+        self.student_syllabus_ID = None
         for dictionary in initial_data:
             for key in dictionary:
                 setattr(self, key, dictionary[key])

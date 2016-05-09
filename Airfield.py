@@ -6,7 +6,7 @@ class Airfield(object):
 
     def __init__(self, *initial_data, **kwargs):
         self.airfield_ID = None
-        self.identifier  = None
+        self.identifier = None
         self.max_runway_length = None
         self.active = None
         self.latitude = None

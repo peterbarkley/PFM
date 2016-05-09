@@ -1,3 +1,9 @@
+
+from datetime import timedelta, date
+
+from gurobipy import *
+from prettytable import PrettyTable
+
 from Squadron import Squadron
 import Sortie
 import StudentSortie
@@ -5,8 +11,6 @@ from Sniv import Sniv
 from Flyer import Flyer
 from Instructor import Instructor
 from Odd import Student
-from gurobipy import *
-from datetime import timedelta
 
 
 class TrainingSquadron(Squadron):
@@ -41,6 +45,11 @@ class TrainingSquadron(Squadron):
         return priority
 
     def createVariables(self):
+        o = PrettyTable(['Stud', 'Events left', 'Days left', 'Pri'])
+        for student in self.students.values():
+            days = student.training_end_date - date.today()
+            o.add_row([str(student.name), str(student.countRemainingEvents()), str(days.days), str(student.getBetterPri())])
+        print o
         if self.verbose:
             print "Creating variables"
         base_tier = 0
@@ -98,8 +107,9 @@ class TrainingSquadron(Squadron):
                                                                                                         name=n)
                                         objective.add(schedule.priority *
                                                       self.wavePriority(wave, event) *
-                                                      student.getPriority() *
+                                                      student.getBetterPri() *
                                                       self.sevents[(student, event, device, day, wave)])
+                                        # print student.priority
 
                 # Loop over days, waves, instructors and devices creating instructor decision variables
                 for instructor in self.instructors.values():
@@ -141,6 +151,8 @@ class TrainingSquadron(Squadron):
 
         for student, event, device, day, wave in se:
             #  Assign an eligible instructor for each student event
+            if self.verboser:
+                print "Assign an eligible instructor for each student event"
             if ((student, event) not in self.schedules[day].hardschedule) or \
                     (self.schedules[day].hardschedule[(student, event)]['instructor'] is None):
                 self.m.addConstr(se[student, event, device, day, wave] <=
@@ -152,6 +164,8 @@ class TrainingSquadron(Squadron):
                                  (student, event, device, day, wave))
             # Hard scheduled instructor constraint
             else:
+                if self.verboser:
+                    print "Hard scheduled instructor constraint"
                 instructor = self.schedules[day].hardschedule[(student, event)]['instructor']
                 self.m.addConstr(se[student, event, device, day, wave] <=
                                  quicksum(ie[instructor, device, day, wave]
@@ -162,6 +176,8 @@ class TrainingSquadron(Squadron):
 
         for day, schedule in self.schedules.items():
             # Hard scheduled event constraint
+            if self.verboser:
+                    print "Hard scheduled event constraint"
             for student, event in schedule.hardschedule:
                 self.m.addConstr(quicksum(se[student, event, device, day, wave]
                                           for student, event, device, day, wave in
@@ -171,6 +187,8 @@ class TrainingSquadron(Squadron):
                 # Aircraft launches per slot time period must not exceed assigned squadron airfield slots
                 # Future work: replace the 3 with a database entry tied to aircraft airfield category and squadron
                 # Future work: should be looping over all waves that start within specific hourly periods
+                if self.verboser:
+                        print "Aircraft launches per slot time period must not exceed assigned squadron airfield slots"
                 self.m.addConstr(quicksum(ie[instructor, device, day, wave]
                                           for instructor, device, day, wave
                                           in y('*', '*', day, wave)
@@ -180,6 +198,8 @@ class TrainingSquadron(Squadron):
                     if device.category in wave.tags:
                         if len(x('*', '*', device, day, wave)) > 0:
                             #  Require sufficient time for all the events to be completed
+                            if self.verboser:
+                                    print "Require sufficient time for all the events to be completed"
                             students_per_instructor = 1
                             if device.category == 'room':  # Really should come from the event media
                                 students_per_instructor = device.student_capacity
@@ -191,6 +211,8 @@ class TrainingSquadron(Squadron):
                                              % (day, wave, device))
                             if device.category == 'aircraft':  # Really should come from the event media
                                 #  Require sufficient night time for all the events to be completed
+                                if self.verboser:
+                                        print "Require sufficient night time for all the events to be completed"
                                 self.m.addConstr(quicksum(event.min_night_hours * se[student, event, device, day, wave]
                                                           for student, event, device, day, wave in
                                                           x('*', '*', device, day, wave)) <=
@@ -198,6 +220,8 @@ class TrainingSquadron(Squadron):
                                                  'Event_min_night_hours_less_than_wave_night_hours_on_day_%s_%s_for_%s'
                                                  % (day, wave, device))
                                 #  Require sufficient day time for all the events to be completed
+                                if self.verboser:
+                                        print "Require sufficient day time for all the events to be completed"
                                 self.m.addConstr(quicksum(event.min_day_hours * se[student, event, device, day, wave]
                                                           for student, event, device, day, wave in
                                                           x('*', '*', device, day, wave)) <=
@@ -205,18 +229,24 @@ class TrainingSquadron(Squadron):
                                                  'Event_min_day_hours_less_than_wave_night_hours_on_day_%s_%s_for_%s'
                                                  % (day, wave, device))
                         # Do not exceed device slot instructor capacity
+                        if self.verboser:
+                                print "Do not exceed device slot instructor capacity"
                         self.m.addConstr(quicksum(ie[instructor, device, day, wave]
                                           for instructor, device, day, wave
                                           in y('*', device, day, wave)) <= device.instructor_capacity,
                                          '%s_can_only_hold_%s_instructors_on_day_%s_during_%s' %
                                          (device, device.instructor_capacity, day, wave))
                         # Do not exceed device slot student capacity
+                        if self.verboser:
+                                print "Do not exceed device slot student capacity"
                         self.m.addConstr(quicksum(se[student, event, device, day, wave]
                                                       for student, event, device, day, wave in
                                                       x('*', '*', device, day, wave)) <= device.student_capacity,
                                          '%s_can_only_hold_%s_students_on_day_%s_during_%s' %
                                          (device, device.student_capacity, day, wave))
                 # Instructor can only be in one device at a time
+                if self.verboser:
+                    print "Instructor can only be in one device at a time"
                 # Future work: filter for instructor availability
                 for instructor in self.instructors.values():
                     self.m.addConstr(quicksum(ie[instructor, device, day, wave]
@@ -226,6 +256,8 @@ class TrainingSquadron(Squadron):
                                      (instructor, day, wave))
 
             # Do not schedule plane in overlapping wave pairs
+            if self.verboser:
+                print "Do not schedule plane in overlapping wave pairs"
             for (i, j) in schedule.exclusiveWaves["Plane"]:
                 for device in self.devices.values():
                     # Future work: exclusiveWaves should return actual waves
@@ -242,6 +274,8 @@ class TrainingSquadron(Squadron):
                 wave_i = schedule.waves[i]
                 wave_j = schedule.waves[j]
                 # Do not schedule instructor in overlapping wave pairs
+                if self.verboser:
+                    print "Do not schedule instructor in overlapping wave pairs"
                 for instructor in self.instructors.values():
 
                     self.m.addConstr(quicksum(ie[instructor, device, day, wave_i]
@@ -254,6 +288,8 @@ class TrainingSquadron(Squadron):
                                      (instructor, day, wave_i, wave_j))
 
                 # Do not schedule student in overlapping wave pairs
+                if self.verboser:
+                    print "Do not schedule student in overlapping wave pairs"
                 for student in self.students.values():
                     self.m.addConstr(quicksum(se[student, event, device, day, wave_i]
                                               for student, event, device, day, wave_i
@@ -268,6 +304,8 @@ class TrainingSquadron(Squadron):
             # Do not exceed instructor crew day
             if day + 1 in self.schedules:
                 # Do not exceed student crew rest
+                if self.verboser:
+                    print "Do not exceed student crew rest"
                 # Future work: either loop over individual events or add continuous crewrest[student, day] vars
                 for (late_wave, early_wave) in self.crewrest_pairs(day, 'Student'):
                     for student in self.students.values():
@@ -280,6 +318,8 @@ class TrainingSquadron(Squadron):
                                          'Do_not_schedule_%s_for_%s_on_day_%s_and_%s_the_next_day_because_of_crewrest' %
                                          (student, day, late_wave, early_wave))
                 # Do not exceed student crew day
+                if self.verboser:
+                    print "Do not exceed student crew day"
                 for (early_wave, late_wave) in self.crewday_pairs(day, 'Student'):
                     for student in self.students.values():
                         self.m.addConstr(quicksum(se[student, event, device, day, late_wave]
@@ -292,6 +332,8 @@ class TrainingSquadron(Squadron):
                                          (student, day, late_wave, early_wave))
 
                 # Do not exceed instructor crew rest
+                if self.verboser:
+                    print "Do not exceed instructor crew rest"
                 for (late_wave, early_wave) in self.crewrest_pairs(day, 'Instructor'):
                     for instructor in self.instructors.values():
                         self.m.addConstr(quicksum(ie[instructor, device, day, late_wave]
@@ -303,6 +345,8 @@ class TrainingSquadron(Squadron):
                                          'Do_not_schedule_%s_for_%s_on_day_%s_and_%s_the_next_day_because_of_crewrest' %
                                          (instructor, day, late_wave, early_wave))
                 # Do not exceed instructor crew day
+                if self.verboser:
+                    print "Do not exceed instructor crew day"
                 for (early_wave, late_wave) in self.crewday_pairs(day, 'Instructor'):
                     for instructor in self.instructors.values():
                         self.m.addConstr(quicksum(ie[instructor, device, day, late_wave]
@@ -315,6 +359,8 @@ class TrainingSquadron(Squadron):
                                          (instructor, day, late_wave, early_wave))
 
             # Do not exceed max graded events for a student
+                if self.verboser:
+                    print "Do not exceed max graded events for a student"
             for student in self.students.values():
                 self.m.addConstr(quicksum(se[student, event, device, day, wave]
                                           for student, event, device, day, wave
@@ -322,7 +368,7 @@ class TrainingSquadron(Squadron):
                                           if event.graded) <= self.max_events,
                                  'No_more_than_%d_graded_events_for_%s_on_day_%s' % (self.max_events, student, day))
             # Only one lesson in a class per wave
-            for device in self.devices.values():
+            """for device in self.devices.values():
                 if device.category == 'room':
                     for student, event, device, day, wave in x('*', '*', device, day, '*'):
                         for student2, event2, device, day, wave in x('*', '*', device, day, wave):
@@ -330,10 +376,12 @@ class TrainingSquadron(Squadron):
                                 self.m.addConstr(se[student, event, device, day, wave] +
                                                  se[student2, event2, device, day, wave] <= 1,
                                                  'If_%s_%s_scheduled_in_%s_on_day_%s_%s_do_not_schedule_%s_%s'
-                                                 % (student, event, device, day, wave, student2, event2))
+                                                 % (student, event, device, day, wave, student2, event2))"""
 
         for student in self.students.values():
             # Schedule partners together
+            if self.verboser:
+                print "Schedule partners together"
             p = student.partner_student_ID
             if p in self.students:
                 partner = self.students[p]
@@ -346,6 +394,8 @@ class TrainingSquadron(Squadron):
                                          'Schedule_partners_%s_and_%s_together_for_%s_in_%s_on_day_%s_%s'
                                          % (student, partner, event, device, day, wave))
             # Schedule each event no more than once
+            if self.verboser:
+                print "Schedule each event no more than once"
             for event, syllabus in student.event_tier(self.max_events * self.days):
                 # event = self.events[e]
                 self.m.addConstr(quicksum(se[student, event, device, day, wave]
@@ -353,6 +403,8 @@ class TrainingSquadron(Squadron):
                                           x(student, event, '*', '*', '*')) <= 1,
                                  'Schedule_%s_%s_not_more_than_once' % (student, event))
                 # Schedule all new ancestors(e) in a wave ending before w (or to w) if assigning e to w
+                if self.verboser:
+                    print "Schedule all new ancestors(event) in a wave ending before event"
                 parents = syllabus.parents(event)
                 if not parents <= student.progressing:
                     for day, schedule in self.schedules.items():

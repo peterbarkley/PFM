@@ -182,7 +182,7 @@ def loadForecast(vt, cur):
 def loadWaves(vt, cur):
     if verbose:
         print "Loading waves"
-    cur.execute('SELECT  wave.wave_ID,device_start,device_end,flyer_start,flyer_end,student_multiple  FROM wave '
+    cur.execute('SELECT wave.wave_ID,device_start,device_end,flyer_start,flyer_end,student_multiple  FROM wave '
                 'LEFT JOIN wave_tag on wave.wave_ID = wave_tag.wave_ID '
                 'LEFT JOIN tag ON wave_tag.tag_ID = tag.tag_ID '
                 'WHERE tag.name = "default" AND organization_ID = %(organization_ID)s',
@@ -220,7 +220,8 @@ def loadScheduleWaves(vt, cur):
                             "ON wave.wave_ID = schedule_wave.wave_ID "
                             "WHERE schedule_ID = %(schedule_ID)s", {'schedule_ID': s.id})
                 waves = cur.fetchall()
-        createWaves(vt, s, waves, wave_tags)
+                # print waves
+            createWaves(vt, s, waves, wave_tags)
     if verbose:
         print "Waves loaded"
 
@@ -355,19 +356,21 @@ def loadStudents(vt, cur):
     if verbose:
         print "Loading Students"
 
-    cur.execute("SELECT student_ID, onwing_instructor_ID, partner_student_ID, last_flight, priority "
-                "FROM student LEFT JOIN hierarchy ON student_ID = child "
-                "WHERE student.status = 'active' AND parent = %(parent)s "
-                "AND (stop > NOW() OR stop IS NULL)",
+    cur.execute("""SELECT concat(title, ' ', last_name,', ',first_name) as name, student_ID, onwing_instructor_ID,
+    partner_student_ID, last_flight, priority, training_end_date FROM student LEFT JOIN hierarchy ON student_ID = child
+    LEFT JOIN user ON user_ID = student_ID WHERE student.status = 'active' AND parent = %(parent)s
+    AND (stop > NOW() OR stop IS NULL)""",
                 {'parent': vt.organization_ID})
     for row in cur:
         s = int(row["student_ID"])
         stud = Student(row, squadron=vt, priority=1)
         vt.students[s] = stud
+        # print stud
 
     loadSyllabi(vt, cur)
     loadStudentSyllabi(vt, cur)
     loadStudentEvents(vt, cur)
+
 
 def loadHardSchedule(vt, cur):
     if verbose:
@@ -429,6 +432,7 @@ def loadStudentEvents(vt, cur):
         # Add progressing events to set for student
         # print "student events", row
         if row['progressing_event'] == 1:
+            # print row
             stud = vt.students[row['student_ID']]
             e = vt.events[row['event_ID']]
             s = vt.syllabus[row['syllabus_ID']]

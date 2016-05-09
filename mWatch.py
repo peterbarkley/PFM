@@ -9,7 +9,7 @@
 # Copyright:   (c) pbarkley 2015
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
-import MySQLdb as mdb
+import mysql.connector as mdb
 import sys
 from datetime import date, datetime, time, timedelta
 from Squadron import Squadron
@@ -326,7 +326,7 @@ def writeToDatabase(vtna,config):
                     for t in vtna.tads:
                         if vtna.vars[t,d,w,p].x == 1:
                             cur.execute("INSERT INTO watchbill (watch_ID, watchstander_ID, schedule_ID, watch_period_ID) VALUES (%s,%s,%s,%s)", (w,t,id,p))
-
+        con.commit()
     return True
 
 if __name__ == '__main__':

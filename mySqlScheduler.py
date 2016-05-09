@@ -9,7 +9,6 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 import mysql.connector
-import MySQLdb as mdb
 import sys
 import decimal
 from datetime import date, datetime, time, timedelta
@@ -25,7 +24,8 @@ from StudentSortie import StudentSortie
 from Plane import Plane
 from Wave import Wave
 
-verbose = True;
+verbose = True
+
 
 def main():
     config = {}
