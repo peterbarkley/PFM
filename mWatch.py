@@ -106,8 +106,8 @@ def load(vtna, config):
         sdo_period = Sniv()
         sdo_period.begin = datetime.combine(sked.day,time(6))
         sdo_period.end = datetime.combine(sked.day,time(21))
-        sdo.periods[1] = sdo_period
-        sdou.periods[1] = sdo_period
+        sdo.periods[10] = sdo_period
+        sdou.periods[10] = sdo_period
         am_dd = Sniv()
         mid_dd = Sniv()
         pm_dd = Sniv()
