@@ -124,8 +124,11 @@ def load(vtna, config):
         sked.watches[2]=sdou
         sked.watches[3]=dd
 
-    quals = {1: ['Segura', 'Lee'],  # SDOs
-             3: ['Meyer', 'Mokracek']}  # Duty Drivers
+    sdos = ['Segura', 'Lee']
+    dds = ['Meyer', 'Mokracek']
+    quals = {1: sdos,  # SDOs
+             2: sdos,
+             3: dds}  # Duty Drivers
 
     # Loop over tads, adding them
     cur.execute("SELECT * FROM user WHERE role = 'tad'")
