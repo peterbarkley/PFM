@@ -54,8 +54,8 @@ class Squadron(object):
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-    #Generates Waves in subsequent days that would be excluded by the crew rest requirements for a specific resource type
-    #Returns a dictionary indexed by wave giving a list of the waves in the subsequent day that would be excluded b/c of crew rest for the resource type
+    # Generates Waves in subsequent days that would be excluded by the crew rest requirements for a specific resource type
+    # Returns a dictionary indexed by wave giving a list of the waves in the subsequent day that would be excluded b/c of crew rest for the resource type
     def generateCrewrestExclusion(self,day1,day2,resourceType):
         w={}
         if resourceType == "Student":

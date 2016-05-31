@@ -28,19 +28,19 @@ from Schedule import Schedule
 from Wave import Wave
 from Watch import Watch
 
-verbose = True;
+verbose = True
+
 
 class Watchbill(object):
     def __init__(self):
-        self.today = Schedule(date.today()) #Current schedule
-        self.schedules = {} #Dictionary of schedules to be written like {1:Schedule(date(2015,3,27)),2:Schedule(date...}
-        self.tads = {} #Dict w/ {user_ID: Resource(user_ID), ...}
+        self.today = Schedule()  # Current schedule
+        self.schedules = {}  # Dictionary of schedules like {1:Schedule(date(2015,3,27)),2:Schedule(date...}
+        self.tads = {}  # Dict w/ {user_ID: Resource(user_ID), ...}
         self.watches = {}
         self.m = Model()
         self.timeLimit = 30
         self.verbose = True
         self.vars = {}
-
 
 
 def main():
@@ -50,116 +50,122 @@ def main():
     watchbill.verbose = verbose
     if verbose:
         print "Loading model from database"
-    load(watchbill,config)
+    load(watchbill, config)
     if verbose:
         print "Solving model"
-    writeWatch(watchbill,config)
+    writeWatch(watchbill, config)
     #if verbose: print "Date loaded"
 
 
 def load(vtna, config):
 
-    con = mdb.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['db'])
-    with con:
-        cur = con.cursor()
-        cur.execute("SELECT VERSION()")
+    con = mdb.connect(host=config['host'],
+                      port=config['port'],
+                      user=config['user'],
+                      passwd=config['password'],
+                      db=config['db'])
 
-        ver = cur.fetchone()
+    cur = con.cursor(dictionary=True)
 
-        if verbose:
-            print "Database version : %s " % ver
-
-        cur = con.cursor(mdb.cursors.DictCursor)
-
-        #Loop over schedule table where not published and flight_day != NULL and add schedules for each flight_day
-        cur.execute("SELECT * FROM schedule WHERE (published = FALSE) ORDER BY (day)") # AND NOT flight_day = NULL
-        rows = cur.fetchall()
-        i = 1
-        for row in rows:
-            day = row["day"]
-            sked=Schedule(day)
-            sked.id = int(row["schedule_ID"])
-            sked.blank = bool(row["blank"])
-
-            if verbose:
-                print 'Computing schedule for schedule ID %d'% (sked.id)
-            vtna.schedules[i]=sked
-            i += 1
-
-        #Find watches
-        for i in vtna.schedules:
-            sked = vtna.schedules[i]
-            sdo = Watch(1)
-            sdo.name = 'SDO'
-            sdou = Watch(2)
-            sdou.name = 'SDO_UI'
-            dd = Watch(3)
-            dd.name = 'Duty_Driver'
-            trb_ensign = Watch(5)
-            trb_ensign.name = 'TRB_Ensign'
-            am_sdo = Sniv()
-            am_sdo.begin = datetime.combine(sked.date,time(6))
-            am_sdo.end = datetime.combine(sked.date,time(14))
-            pm_sdo = Sniv()
-            pm_sdo.begin = datetime.combine(sked.date,time(6))
-            pm_sdo.end = datetime.combine(sked.date,time(14))
-            sdo.periods[1] = am_sdo;
-            sdo.periods[2] = pm_sdo;
-            sdou.periods[1] = am_sdo
-            sdou.periods[2] = pm_sdo
-            am_dd = Sniv()
-            mid_dd = Sniv()
-            pm_dd = Sniv()
-            am_dd.begin = datetime.combine(sked.date,time(5))
-            am_dd.end = datetime.combine(sked.date,time(11))
-            mid_dd.begin = datetime.combine(sked.date,time(10))
-            mid_dd.end = datetime.combine(sked.date,time(17))
-            pm_dd.begin = datetime.combine(sked.date,time(16))
-            pm_dd.end = datetime.combine(sked.date,time(22))
-            dd.periods[3]=am_dd
-            dd.periods[4]=mid_dd
-            dd.periods[5]=pm_dd
-            sked.watches[1]=sdo
-            sked.watches[2]=sdou
-            sked.watches[3]=dd
-
-
-        #Loop over tads, adding them
-        cur.execute("SELECT * FROM user LEFT JOIN watch_quals ON user.user_ID = watch_quals.user_ID WHERE role = 'tad'")
-        rows = cur.fetchall()
-        for row in rows:
-            s = int(row["user_ID"])
-            if verbose:
-                print 'User id ',s
-            if s not in vtna.tads:
-                t = Resource(s)
-                t.name = (row["last_name"])
-                vtna.tads[s]= t
-            if row["watch_ID"] is not None:
-                vtna.tads[s].quals.append(int(row["watch_ID"]))
+    #Loop over schedule table where not published and flight_day != NULL and add schedules for each flight_day
+    cur.execute("SELECT * FROM schedule WHERE (published = FALSE) ORDER BY (day)") # AND NOT flight_day = NULL
+    rows = cur.fetchall()
+    i = 1
+    for row in rows:
+        # day = row["day"]
+        sked = Schedule(row)
+        # sked.id = int(row["schedule_ID"])
+        # sked.blank = bool(row["blank"])
 
         if verbose:
-            print "TADs loaded"
+            print 'Computing schedule for schedule ID %d'% (sked.id)
+        vtna.schedules[i]=sked
+        i += 1
 
-        #Add snivs for students & CFIs
-        cur.execute("SELECT * FROM sniv WHERE (end >= %s and approval=TRUE)",(vtna.schedules[1].date.strftime('%Y-%m-%d')))
-        rows = cur.fetchall()
-        i=1
-        for row in rows:
-            id = row["user_ID"]
-            if verbose:
-                print id,row["start"],row["end"]
-            if id in vtna.tads:
-                s = Sniv()
-                s.begin = row["start"]
-                s.end = row["end"]
-                vtna.tads[id].snivs[i]=s
-                i=i+1
+    #Find watches
+    for i in vtna.schedules:
+        sked = vtna.schedules[i]
+        sdo = Watch(1)
+        sdo.name = 'SDO'
+        sdou = Watch(2)
+        sdou.name = 'SDO_UI'
+        dd = Watch(3)
+        dd.name = 'Duty_Driver'
+        # trb_ensign = Watch(5)
+        # trb_ensign.name = 'TRB_Ensign'
+        """am_sdo = Sniv()
+        am_sdo.begin = datetime.combine(sked.day,time(6))
+        am_sdo.end = datetime.combine(sked.day,time(14))
+        pm_sdo = Sniv()
+        pm_sdo.begin = datetime.combine(sked.day,time(6))
+        pm_sdo.end = datetime.combine(sked.day,time(14))
+        sdo.periods[1] = am_sdo;
+        sdo.periods[2] = pm_sdo;
+        sdou.periods[1] = am_sdo
+        sdou.periods[2] = pm_sdo"""
+        sdo_period = Sniv()
+        sdo_period.begin = datetime.combine(sked.day,time(6))
+        sdo_period.end = datetime.combine(sked.day,time(21))
+        sdo.periods[1] = sdo_period
+        sdou.periods[1] = sdo_period
+        am_dd = Sniv()
+        mid_dd = Sniv()
+        pm_dd = Sniv()
+        am_dd.begin = datetime.combine(sked.day,time(5))
+        am_dd.end = datetime.combine(sked.day,time(11))
+        mid_dd.begin = datetime.combine(sked.day,time(10))
+        mid_dd.end = datetime.combine(sked.day,time(17))
+        pm_dd.begin = datetime.combine(sked.day,time(16))
+        pm_dd.end = datetime.combine(sked.day,time(22))
+        dd.periods[3]=am_dd
+        dd.periods[4]=mid_dd
+        dd.periods[5]=pm_dd
+        sked.watches[1]=sdo
+        sked.watches[2]=sdou
+        sked.watches[3]=dd
 
+    quals = {1: ['Segura', 'Lee'],  # SDOs
+             3: ['Meyer', 'Mokracek']}  # Duty Drivers
+
+    # Loop over tads, adding them
+    cur.execute("SELECT * FROM user WHERE role = 'tad'")
+    rows = cur.fetchall()
+    for row in rows:
+        s = int(row["user_ID"])
         if verbose:
-            print "Snivs loaded"
+            print 'User id ', s
+        if s not in vtna.tads:
+            t = Resource(id=s)
+            t.name = (row["last_name"])
+            vtna.tads[s] = t
+        for watch_ID in quals:
+            if t.name in quals[watch_ID]:
+                vtna.tads[s].quals.append(watch_ID)
 
-def writeWatch(vtna,config):
+    if verbose:
+        print "TADs loaded"
+
+    # Add snivs for students & CFIs
+    cur.execute("SELECT * FROM sniv WHERE (end >= %(day)s and approval=TRUE)",
+                {'day':vtna.schedules[1].day})
+    rows = cur.fetchall()
+    i=1
+    for row in rows:
+        id = row["user_ID"]
+        if verbose:
+            print id,row["start"],row["end"]
+        if id in vtna.tads:
+            s = Sniv()
+            s.begin = row["start"]
+            s.end = row["end"]
+            vtna.tads[id].snivs[i]=s
+            i = i+1
+
+    if verbose:
+        print "Snivs loaded"
+
+
+def writeWatch(vtna, config):
 
     #Generate variables for each tad for each watch for each period
     objective = LinExpr()
@@ -168,11 +174,13 @@ def writeWatch(vtna,config):
         for t, tad in vtna.tads.iteritems():
             for w, watch in sked.watches.iteritems():
                 for p in watch.periods:
-                    vtna.vars[t,d,w,p] = vtna.m.addVar(vtype=GRB.BINARY,name=str(sked.date) + '_' + watch.name  + '_' + str(p) + '_ENS_'+ tad.name) #+1 to obj should be implied
+                    n = str(sked.day) + '_' + watch.name  + '_' + str(p) + '_ENS_'+ tad.name
+                    vtna.vars[t,d,w,p] = vtna.m.addVar(vtype=GRB.BINARY,
+                                                       name=n) #+1 to obj should be implied
     z = vtna.m.addVar(name='maxWatches')
 
     vtna.m.update()
-    vtna.m.setObjective(z,GRB.MINIMIZE)
+    vtna.m.setObjective(z, GRB.MINIMIZE)
     #Generate constraints
 
     #Constraint 1: No watch when snivved
@@ -185,7 +193,8 @@ def writeWatch(vtna,config):
                         if sniv.end > period.begin and sniv.begin < period.end:
                             available = False
                     if not available:
-                        vtna.m.addConstr(vtna.vars[t,d,w,p]==0,'%s_snivved_during_%s_%d_%d'%(tad.name,watch.name,d,p))
+                        vtna.m.addConstr(vtna.vars[t,d,w,p] == 0,
+                                         '%s_snivved_during_%s_%d_%d' % (tad.name, watch.name, d, p))
                         if verbose:
                             print '%s_snivved_during_%s_%d_%d'%(tad.name,watch.name,d,p)
 
@@ -209,38 +218,42 @@ def writeWatch(vtna,config):
                     for p, period in watch.periods.iteritems():
                         vtna.m.addConstr(vtna.vars[t,d,w,p] + quicksum(vtna.vars[t,d+1,u,q] for u in vtna.schedules[d+1].watches for q in vtna.schedules[d+1].watches[u].periods if q!=p) <= 1,  'continuity_%s_%s_%s_%d'%(tad.name,watch.name,d,p))
 
-    #Stand 3 SDO U/I before SDO
+    # Stand 3 SDO U/I before SDO
     for t, tad in vtna.tads.iteritems():
         if 1 not in tad.quals:
             for d, sked in vtna.schedules.iteritems():
-                vtna.m.addConstr(quicksum(vtna.vars[t,i,2,p] for i in range(1,d) for p in vtna.schedules[i].watches[2].periods) >= quicksum(vtna.vars[t,d,1,p] for p in sked.watches[1].periods), 'ui_%s_%d'%(tad.name,d))
+                vtna.m.addConstr(quicksum(vtna.vars[t,i,2,p]
+                                          for i in range(1,d)
+                                          for p in vtna.schedules[i].watches[2].periods)
+                                 >= quicksum(vtna.vars[t,d,1,p]
+                                             for p in sked.watches[1].periods), 'ui_%s_%d'%(tad.name,d))
                 if verbose:
                     print 'ui_%s_%d'%(tad.name,d)
 
-    #No watch for blank schedules
+    # No watch for blank schedules
     for d, sked in vtna.schedules.iteritems():
         if sked.blank:
             vtna.m.addConstr(quicksum(vtna.vars[t,d,w,p] for t in vtna.tads for w in sked.watches for p in sked.watches[w].periods)==0,'blank_sked_%s'%(d))
             if verbose:
                 print 'blank_sked_%s'%(d)
 
-    #Fill all watches (except first three SDO)
+    # Fill all watches (except first three SDO)
     for d, sked in vtna.schedules.iteritems():
         if not sked.blank:
             for w, watch in sked.watches.iteritems():
                 for p, period in watch.periods.iteritems():
-                    if w != 2 and (sked.id>19) and not ((sked.id==43 or sked.id == 42) and w == 3 and p == 4):
+                    if w != 2 and (sked.id > 263):
                         vtna.m.addConstr(quicksum(vtna.vars[t,d,w,p] for t in vtna.tads) == 1, 'fillWatch_%s_%s_%s'%(d,watch.name,p))
                         if verbose:
                             print 'fillWatch_%s_%s_%s'%(d,watch.name,p)
 
-    #Work no more than 5 days in a row
+    # Work no more than 5 days in a row
     for t, tad in vtna.tads.iteritems():
         for d, sked in vtna.schedules.iteritems():
             if (d<len(vtna.schedules)-6):
                 vtna.m.addConstr(quicksum(vtna.vars[t,i,w,p] for i in range(d,d+6) for w in sked.watches for p in sked.watches[w].periods)<=5)
 
-    #Richline doesn't have driver's license
+    """#Richline doesn't have driver's license
     for d, sked in vtna.schedules.iteritems():
         if sked.id < 31:
             w = 3
@@ -250,11 +263,14 @@ def writeWatch(vtna,config):
         w = 3
         watch = sked.watches[w]
         for p, period in watch.periods.iteritems():
-            vtna.m.addConstr(vtna.vars[42,d,w,p]==0, 'khambahti_no_dd')
+            vtna.m.addConstr(vtna.vars[42,d,w,p]==0, 'khambahti_no_dd')"""
 
     #Set z as the maximum weighted watchstanding
     for t, tad in vtna.tads.iteritems():
-        vtna.m.addConstr(z >= quicksum(pain(t,vtna.schedules[d].date,p)*vtna.vars[t,d,w,p] for d in vtna.schedules for w in vtna.schedules[d].watches for p in vtna.schedules[d].watches[w].periods), 'pain_%s'%(tad.name))
+        vtna.m.addConstr(z >= quicksum(pain(t,vtna.schedules[d].day,p)*vtna.vars[t,d,w,p]
+                                       for d in vtna.schedules
+                                       for w in vtna.schedules[d].watches
+                                       for p in vtna.schedules[d].watches[w].periods), 'pain_%s'%(tad.name))
         if verbose:
             print 'pain_%s'%(tad.name)
 
@@ -292,7 +308,7 @@ def writeWatch(vtna,config):
     return True
 
 def pain(t,d,p):
-    period_pain = {1:1.2,2:1.2,3:1.1,4:1.0,5:1.1}
+    period_pain = {1:2, 3:1.1, 4:1.0, 5:1.1}
     day_pain = 1
     t_pain = 1
     if d.weekday() == 5:
@@ -307,26 +323,31 @@ def writeToDatabase(vtna,config):
         if v.x == 1:
             print('%s %g' % (v.varName, v.x))
 
-
     for t, tad in vtna.tads.iteritems():
-        print quicksum(pain(t,vtna.schedules[d].date,p)*vtna.vars[t,d,w,p].x for d in vtna.schedules for w in vtna.schedules[d].watches for p in vtna.schedules[d].watches[w].periods)
+        print quicksum(pain(t, vtna.schedules[d].day, p)*vtna.vars[t,d,w,p].x
+                       for d in vtna.schedules
+                       for w in vtna.schedules[d].watches
+                       for p in vtna.schedules[d].watches[w].periods)
 
-    con = mdb.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['db'])
+    con = mdb.connect(host=config['host'],
+                      port=config['port'],
+                      user=config['user'],
+                      passwd=config['password'],
+                      db=config['db'])
 
-    with con:
-        cur = con.cursor(mdb.cursors.DictCursor)
-
-        for d, sked in vtna.schedules.iteritems():
-            day = sked.date
-            id = sked.id
-            cur.execute("DELETE FROM watchbill WHERE schedule_ID = %s", (id))
-            #cur.execute("SELECT * FROM schedule WHERE schedule_ID = %s",(id)) # AND NOT flight_day = NULL
-            for w, watch in sked.watches.iteritems():
-                for p, period in watch.periods.iteritems():
-                    for t in vtna.tads:
-                        if vtna.vars[t,d,w,p].x == 1:
-                            cur.execute("INSERT INTO watchbill (watch_ID, watchstander_ID, schedule_ID, watch_period_ID) VALUES (%s,%s,%s,%s)", (w,t,id,p))
-        con.commit()
+    cur = con.cursor(dictionary=True)
+    """for d, sked in vtna.schedules.iteritems():
+        day = sked.day
+        id = sked.id
+        cur.execute("DELETE FROM watchbill WHERE schedule_ID = %s", (id))
+        #cur.execute("SELECT * FROM schedule WHERE schedule_ID = %s",(id)) # AND NOT flight_day = NULL
+        for w, watch in sked.watches.iteritems():
+            for p, period in watch.periods.iteritems():
+                for t in vtna.tads:
+                    if vtna.vars[t,d,w,p].x == 1:
+                        cur.execute("INSERT INTO watchbill (watch_ID, watchstander_ID, schedule_ID, watch_period_ID) VALUES (%s,%s,%s,%s)", (w,t,id,p))
+    """
+    con.commit()
     return True
 
 if __name__ == '__main__':
