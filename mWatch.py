@@ -245,7 +245,7 @@ def writeWatch(vtna, config):
         if not sked.blank:
             for w, watch in sked.watches.iteritems():
                 for p, period in watch.periods.iteritems():
-                    if w != 2 and (sked.id > 263):
+                    if w != 2 and (sked.id > 262):
                         vtna.m.addConstr(quicksum(vtna.vars[t,d,w,p] for t in vtna.tads) == 1, 'fillWatch_%s_%s_%s'%(d,watch.name,p))
                         if verbose:
                             print 'fillWatch_%s_%s_%s'%(d,watch.name,p)
