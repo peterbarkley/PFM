@@ -1,6 +1,72 @@
 Maximize
  
 Subject To
- Require_student_512_to_be_scheduled: >= 1
+ Require_student_435_to_be_scheduled:
+   student_435_event_-3_plane_N62885_day_1_wave_1
+   + student_435_event_-3_plane_N62885_day_1_wave_2
+   + student_435_event_-3_plane_N62885_day_1_wave_3
+   + student_435_event_-3_plane_N62885_day_1_wave_4
+   + student_435_event_-3_plane_N62885_day_1_wave_5
+   + student_435_event_-3_plane_N2110Q_day_1_wave_1
+   + student_435_event_-3_plane_N2110Q_day_1_wave_2
+   + student_435_event_-3_plane_N2110Q_day_1_wave_3
+   + student_435_event_-3_plane_N2110Q_day_1_wave_4
+   + student_435_event_-3_plane_N2110Q_day_1_wave_5
+   + student_435_event_-3_plane_N680MA_day_1_wave_1
+   + student_435_event_-3_plane_N680MA_day_1_wave_2
+   + student_435_event_-3_plane_N680MA_day_1_wave_3
+   + student_435_event_-3_plane_N680MA_day_1_wave_4
+   + student_435_event_-3_plane_N680MA_day_1_wave_5 >= 1
+ Student_435_not_available_day_1_wave_1:
+   student_435_event_-3_plane_N62885_day_1_wave_1
+   + student_435_event_-3_plane_N2110Q_day_1_wave_1
+   + student_435_event_-3_plane_N680MA_day_1_wave_1 <= 0
+ Student_435_not_available_day_1_wave_2:
+   student_435_event_-3_plane_N62885_day_1_wave_2
+   + student_435_event_-3_plane_N2110Q_day_1_wave_2
+   + student_435_event_-3_plane_N680MA_day_1_wave_2 <= 0
+ Student_435_not_available_day_1_wave_3:
+   student_435_event_-3_plane_N62885_day_1_wave_3
+   + student_435_event_-3_plane_N2110Q_day_1_wave_3
+   + student_435_event_-3_plane_N680MA_day_1_wave_3 <= 0
+ Student_435_not_available_day_1_wave_4:
+   student_435_event_-3_plane_N62885_day_1_wave_4
+   + student_435_event_-3_plane_N2110Q_day_1_wave_4
+   + student_435_event_-3_plane_N680MA_day_1_wave_4 <= 0
+ Student_435_not_available_day_1_wave_5:
+   student_435_event_-3_plane_N62885_day_1_wave_5
+   + student_435_event_-3_plane_N2110Q_day_1_wave_5
+   + student_435_event_-3_plane_N680MA_day_1_wave_5 <= 0
 Bounds
+ student_435_event_-3_plane_N62885_day_1_wave_1 free
+ student_435_event_-3_plane_N62885_day_1_wave_2 free
+ student_435_event_-3_plane_N62885_day_1_wave_3 free
+ student_435_event_-3_plane_N62885_day_1_wave_4 free
+ student_435_event_-3_plane_N62885_day_1_wave_5 free
+ student_435_event_-3_plane_N2110Q_day_1_wave_1 free
+ student_435_event_-3_plane_N2110Q_day_1_wave_2 free
+ student_435_event_-3_plane_N2110Q_day_1_wave_3 free
+ student_435_event_-3_plane_N2110Q_day_1_wave_4 free
+ student_435_event_-3_plane_N2110Q_day_1_wave_5 free
+ student_435_event_-3_plane_N680MA_day_1_wave_1 free
+ student_435_event_-3_plane_N680MA_day_1_wave_2 free
+ student_435_event_-3_plane_N680MA_day_1_wave_3 free
+ student_435_event_-3_plane_N680MA_day_1_wave_4 free
+ student_435_event_-3_plane_N680MA_day_1_wave_5 free
+Generals
+ student_435_event_-3_plane_N62885_day_1_wave_1
+ student_435_event_-3_plane_N62885_day_1_wave_2
+ student_435_event_-3_plane_N62885_day_1_wave_3
+ student_435_event_-3_plane_N62885_day_1_wave_4
+ student_435_event_-3_plane_N62885_day_1_wave_5
+ student_435_event_-3_plane_N2110Q_day_1_wave_1
+ student_435_event_-3_plane_N2110Q_day_1_wave_2
+ student_435_event_-3_plane_N2110Q_day_1_wave_3
+ student_435_event_-3_plane_N2110Q_day_1_wave_4
+ student_435_event_-3_plane_N2110Q_day_1_wave_5
+ student_435_event_-3_plane_N680MA_day_1_wave_1
+ student_435_event_-3_plane_N680MA_day_1_wave_2
+ student_435_event_-3_plane_N680MA_day_1_wave_3
+ student_435_event_-3_plane_N680MA_day_1_wave_4
+ student_435_event_-3_plane_N680MA_day_1_wave_5
 End

@@ -268,7 +268,8 @@ def load(vtna, config):
             print "Quals loaded"
 
         #Add snivs for students & CFIs
-        cur.execute("SELECT * FROM sniv WHERE (end >= %s and start <= %s and approval=TRUE)",(vtna.schedules[1].day.strftime('%Y-%m-%d'),(vtna.schedules[vtna.days].day+timedelta(days=1)).strftime('%Y-%m-%d')))
+        cur.execute("SELECT * FROM sniv WHERE (end >= %s and start <= %s and approval=TRUE)",
+                    (vtna.schedules[1].day.strftime('%Y-%m-%d'),(vtna.schedules[vtna.days].day+timedelta(days=1)).strftime('%Y-%m-%d')))
         rows = cur.fetchall()
         i = 1
         for row in rows:

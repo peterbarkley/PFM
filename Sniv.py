@@ -16,7 +16,7 @@ class Sniv(object):
     """This is the sniv class"""
 
     def __init__(self, *initial_data, **kwargs):
-        self.begin = datetime.now()
+        self.start = datetime.now()
         self.end = datetime.now()
         self.sniv_ID = None
         for dictionary in initial_data:
@@ -24,4 +24,4 @@ class Sniv(object):
                 setattr(self, key, dictionary[key])
         for key in kwargs:
             setattr(self, key, kwargs[key])
-
+        self.begin = self.start

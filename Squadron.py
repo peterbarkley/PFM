@@ -374,7 +374,7 @@ class Squadron(object):
                     wave = sked.waves[w]
                     available = 1
                     availstring = 'student_available'
-                    if not stud.available(day,wave):
+                    if not stud.available(day, wave):
                         available = 0
                         availstring = 'student_not_available'
                         self.m.addConstr(quicksum(self.sevents[s,p,d,w,event.id] for p,plane in self.planes.iteritems() for event in stud.events(d,wave) if (stud.qualified(plane) and plane.available(day,wave)))<=0,
