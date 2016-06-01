@@ -61,10 +61,14 @@ def main():
     #if verbose: print "Date loaded"
     return 0
 
+
 def load(vtna, config):
 
-    # con = mdb.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['database'])
-    con = mysql.connector.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['database'])
+    con = mysql.connector.connect(host=config['host'],
+                                  port=config['port'],
+                                  user=config['user'],
+                                  passwd=config['password'],
+                                  db=config['database'])
     try: # with con:
         # cur = con.cursor()
         cur = con.cursor(dictionary=True)

@@ -38,7 +38,7 @@ class Watchbill(object):
         self.tads = {}  # Dict w/ {user_ID: Resource(user_ID), ...}
         self.watches = {}
         self.m = Model()
-        self.timeLimit = 30
+        self.timeLimit = 600
         self.verbose = True
         self.vars = {}
 
@@ -268,9 +268,13 @@ def writeWatch(vtna, config):
         for p, period in watch.periods.iteritems():
             vtna.m.addConstr(vtna.vars[42,d,w,p]==0, 'khambahti_no_dd')"""
 
+    scheduled = [262, 682, 681]
     #Set z as the maximum weighted watchstanding
     for t, tad in vtna.tads.iteritems():
-        vtna.m.addConstr(z >= quicksum(pain(t,vtna.schedules[d].day,p)*vtna.vars[t,d,w,p]
+        adjustment = 0
+        if t in scheduled:
+            adjustment = 1
+        vtna.m.addConstr(z >= adjustment + quicksum(pain(t,vtna.schedules[d].day,p)*vtna.vars[t,d,w,p]
                                        for d in vtna.schedules
                                        for w in vtna.schedules[d].watches
                                        for p in vtna.schedules[d].watches[w].periods), 'pain_%s'%(tad.name))
@@ -311,7 +315,7 @@ def writeWatch(vtna, config):
     return True
 
 def pain(t,d,p):
-    period_pain = {1:2, 3:1.1, 4:1.0, 5:1.1}
+    period_pain = {10:2.5, 3:1.1, 4:1.0, 5:1.1}
     day_pain = 1
     t_pain = 1
     if d.weekday() == 5:
@@ -339,17 +343,22 @@ def writeToDatabase(vtna,config):
                       db=config['db'])
 
     cur = con.cursor(dictionary=True)
-    """for d, sked in vtna.schedules.iteritems():
+    for d, sked in vtna.schedules.iteritems():
         day = sked.day
         id = sked.id
-        cur.execute("DELETE FROM watchbill WHERE schedule_ID = %s", (id))
+        cur.execute("DELETE FROM watchbill WHERE schedule_ID = %(id)s and watch_ID != 4", {'id':id})
         #cur.execute("SELECT * FROM schedule WHERE schedule_ID = %s",(id)) # AND NOT flight_day = NULL
         for w, watch in sked.watches.iteritems():
             for p, period in watch.periods.iteritems():
                 for t in vtna.tads:
                     if vtna.vars[t,d,w,p].x == 1:
-                        cur.execute("INSERT INTO watchbill (watch_ID, watchstander_ID, schedule_ID, watch_period_ID) VALUES (%s,%s,%s,%s)", (w,t,id,p))
-    """
+                        cur.execute("INSERT INTO watchbill (watch_ID, watchstander_ID, schedule_ID, watch_period_ID) "
+                                    "VALUES (%(watch)s,%(tad)s,%(day)s,%(period)s)",
+                        {'watch':w,
+                        'tad':t,
+                        'day':id,
+                        'period':p})
+
     con.commit()
     return True
 

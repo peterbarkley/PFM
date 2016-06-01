@@ -297,21 +297,21 @@ class Squadron(object):
                         self.m.addConstr(expr <= 1,
                         'Plane_%s_can_only_hold_one_instructor_on_day_%s_during_wave_%d' % (p,d,w)) #Constraint P5
 
-                        #This is the student pairing loop
+                        # This is the student pairing loop
                         maxStudExpr = LinExpr()
                         maxStuds = len(self.students)
                         for s in self.students:
                             stud = self.students[s]
                             if stud.qualified(plane):
-                                #This is the student pairing loop
-                                if stud.partner!=None:
+                                # This is the student pairing loop
+                                if stud.partner is not None:
                                     if stud.partner.getNextEvent() == stud.getNextEvent():
                                         if self.verbose:
                                             print stud.id, stud.nextEvent, stud.partner.id, stud.partner.nextEvent
                                         for event in stud.events(d,wave):
                                             self.m.addConstr(self.sevents[s,p,d,wave.id,event.id]<=self.sevents[stud.partner.id,p,d,wave.id,event.id],
                                             'Students_%s_&_%s_are_partners_&_active_&_on_event_%s_if_one_flies_on_plane_%s_day_%d_wave_%s_the_other_must_as_well'% (s,stud.partner.id,event,p,d,wave.id)) #Constraint E2
-                                #Max students constraint
+                                # Max students constraint
                                 for event in stud.events(d,wave):
                                     if self.verbose:
                                         print 'Event %d day %d wave %d maxstuds %d' % (event.id, d, w, event.max_students)
@@ -329,7 +329,7 @@ class Squadron(object):
 
             for i in self.instructors:
                 inst = self.instructors[i]
-                #Exclusive wave loop for instructors
+                # Exclusive wave loop for instructors
                 resourceType = "Flyer"
                 if self.backToBack:
                     resourceType = "Plane"
@@ -346,7 +346,7 @@ class Squadron(object):
                                 expr.add(self.ievents[i,p,d,w[1]])
                     self.m.addConstr(expr <=1,
                     'Do_not_schedule_instructor_%s_on_day_%s_for_wave_%d_and_%d_because_they_overlap' % (i,d,w[0],w[1])) #Constraint I2
-                if not self.backToBack:
+                if True:  # not self.backToBack:
                     #Don't fly an instructor more than their max events
                     maxEventExpr = LinExpr()
                     maxHoursExpr = LinExpr()
