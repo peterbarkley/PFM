@@ -29,6 +29,7 @@ from Wave import Wave
 from Watch import Watch
 
 verbose = True
+period_pain = {10:2.7, 3:1.1, 4:1.0, 5:1.1, 7:1.3, 11:1.3}
 
 
 class Watchbill(object):
@@ -38,7 +39,7 @@ class Watchbill(object):
         self.tads = {}  # Dict w/ {user_ID: Resource(user_ID), ...}
         self.watches = {}
         self.m = Model()
-        self.timeLimit = 600
+        self.timeLimit = 360
         self.verbose = True
         self.vars = {}
 
@@ -124,8 +125,8 @@ def load(vtna, config):
         sked.watches[2]=sdou
         sked.watches[3]=dd
 
-    sdos = ['Segura', 'Lee']
-    dds = ['Meyer', 'Mokracek']
+    sdos = ['Segura', 'Lahey']
+    dds = []
     quals = {1: sdos,  # SDOs
              2: sdos,
              3: dds}  # Duty Drivers
@@ -133,6 +134,7 @@ def load(vtna, config):
     # Loop over tads, adding them
     cur.execute("SELECT * FROM user WHERE role = 'tad'")
     rows = cur.fetchall()
+    painpoints = {}
     for row in rows:
         s = int(row["user_ID"])
         if verbose:
@@ -141,9 +143,16 @@ def load(vtna, config):
             t = Resource(id=s)
             t.name = (row["last_name"])
             vtna.tads[s] = t
+        painpoints[s] = 0
         for watch_ID in quals:
             if t.name in quals[watch_ID]:
                 vtna.tads[s].quals.append(watch_ID)
+
+    cur.execute("SELECT watch_ID, watchstander_ID, watch_period_ID FROM watchbill LEFT JOIN schedule ON schedule.schedule_ID = watchbill.schedule_ID "
+                "WHERE published = 1 AND YEAR = 2016 and watch_ID != 4")
+
+    for row in cur.fetchall():
+        painpoints[row["watchstander_ID"]] += period_pain[row["watch_period_ID"]]
 
     if verbose:
         print "TADs loaded"
@@ -254,7 +263,19 @@ def writeWatch(vtna, config):
     for t, tad in vtna.tads.iteritems():
         for d, sked in vtna.schedules.iteritems():
             if (d<len(vtna.schedules)-6):
-                vtna.m.addConstr(quicksum(vtna.vars[t,i,w,p] for i in range(d,d+6) for w in sked.watches for p in sked.watches[w].periods)<=5)
+                vtna.m.addConstr(quicksum(vtna.vars[t,i,w,p]
+                                          for i in range(d,d+6)
+                                          for w in sked.watches
+                                          for p in sked.watches[w].periods) <= 5,
+                                 'no_more_than_5_watches_in_a_row_%s_%s' % (d, t))
+
+    # Stand SDO no more than once in three days
+    for t, tad in vtna.tads.iteritems():
+        for d, sked in vtna.schedules.iteritems():
+            if d < len(vtna.schedules)-1:
+                vtna.m.addConstr(quicksum(vtna.vars[t,i,1,10]
+                                          for i in range(d,d+3)) <= 1,
+                                 'no_more_than_1_sdo_in_three_days_%s_%s' % (d, t))
 
     """#Richline doesn't have driver's license
     for d, sked in vtna.schedules.iteritems():
@@ -268,7 +289,7 @@ def writeWatch(vtna, config):
         for p, period in watch.periods.iteritems():
             vtna.m.addConstr(vtna.vars[42,d,w,p]==0, 'khambahti_no_dd')"""
 
-    scheduled = [262, 682, 681]
+    scheduled = []
     #Set z as the maximum weighted watchstanding
     for t, tad in vtna.tads.iteritems():
         adjustment = 0
@@ -285,6 +306,7 @@ def writeWatch(vtna, config):
     vtna.m.params.timeLimit = vtna.timeLimit
 
     vtna.m.update()
+    vtna.m.write('model.lp')
     vtna.m.optimize()
     model = vtna.m
     if model.status == GRB.status.INF_OR_UNBD:
@@ -315,7 +337,6 @@ def writeWatch(vtna, config):
     return True
 
 def pain(t,d,p):
-    period_pain = {10:2.5, 3:1.1, 4:1.0, 5:1.1}
     day_pain = 1
     t_pain = 1
     if d.weekday() == 5:
