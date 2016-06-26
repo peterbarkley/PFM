@@ -8,7 +8,8 @@
 # Copyright:   (c) pbarkley 2015
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
-import mysql.connector
+#import mysql.connector
+import MySQLdb as mdb
 import sys
 import decimal
 from datetime import date, datetime, time, timedelta
@@ -64,15 +65,15 @@ def main():
 
 def load(vtna, config):
 
-    con = mysql.connector.connect(host=config['host'],
+    con = mdb.connect(host=config['host'],
                                   port=config['port'],
                                   user=config['user'],
                                   passwd=config['password'],
                                   db=config['database'])
-    try: # with con:
+    with con:
         # cur = con.cursor()
-        cur = con.cursor(dictionary=True)
-        # cur = con.cursor(mdb.cursors.DictCursor)
+        # cur = con.cursor(dictionary=True)
+        cur = con.cursor(mdb.cursors.DictCursor)
         days = config['days']
         if days > 3:
             vtna.calculateMaintenance = True
@@ -399,8 +400,7 @@ def load(vtna, config):
                         inst.setPreference(d, w, pref)
                         if verbose:
                             print "Set preference for instructor %d, day %d, wave %d for value %d"%(c,d,w,pref)
-    finally:
-        con.close()
+
 
 
 
@@ -433,11 +433,15 @@ def createWaves(sked,rows,waves):
 def writeToDatabase(vtna,config):
 
     # con = mdb.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['db'])
-    con = mysql.connector.connect(host=config['host'],port=config['port'],user=config['user'],passwd=config['password'],db=config['database'])
+    con = mdb.connect(host=config['host'],
+                      port=config['port'],
+                      user=config['user'],
+                      passwd=config['password'],
+                      db=config['database'])
 
-    try: # with con:
-        # cur = con.cursor(mdb.cursors.DictCursor)
-        cur = con.cursor(dictionary=True)
+    with con:
+        cur = con.cursor(mdb.cursors.DictCursor)
+        #cur = con.cursor(dictionary=True)
 
         for d in vtna.schedules:
 
@@ -485,9 +489,8 @@ def writeToDatabase(vtna,config):
                             ss.event.instructionalHours,
                             sortie.plane.id))
                 print "Schedule for %s written to database"%(day)
-    finally:
-        con.commit()
-        con.close()
+    #con.commit()
+    #con.close()
 
 if __name__ == '__main__':
     main()
