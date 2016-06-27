@@ -105,8 +105,8 @@ class Squadron(object):
             m.write('tune.prm')
         """
         # Solve the model using the tuned parameters
-        """if True: # self.verbose:
-            self.m.write('model.lp')"""
+        if True:  # self.verbose:
+            self.m.write('model.lp')
         self.m.optimize()
 
         model = self.m
@@ -262,8 +262,12 @@ class Squadron(object):
                 if self.sufficientTime:
                     for p, plane in self.planes.iteritems():
                         if plane.available(day,wave):
-                            self.m.addConstr(quicksum(event.flightHours*self.sevents[s,p,d,w,event.id] for s, stud in self.students.iteritems() for event in stud.events(d,wave) if stud.qualified(plane)) <= wave.planeHours(),
-                            'Require_sufficient_time_in_wave_%s_day_%s_plane_%s_for_scheduled_events' % (w,d,p) ) #Constraint E1
+                            self.m.addConstr(quicksum(
+                                (event.flightHours + event.planeHours) * self.sevents[s,p,d,w,event.id]
+                                for s, stud in self.students.iteritems()
+                                for event in stud.events(d,wave) if stud.qualified(plane)) <= wave.planeHours(),
+                                             'Require_sufficient_time_in_wave_%s_day_%s_plane_%s_for_scheduled_events'
+                                             % (w,d,p))  # Constraint E1
                             if self.verbose:
                                 print 'Events_fit_in_%s_hours for wave_%s_day_%s_plane_%s' % (wave.planeHours(),w,d,p)
 
